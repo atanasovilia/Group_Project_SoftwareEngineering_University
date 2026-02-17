@@ -1,11 +1,79 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Change</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hospify</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-    
+
+<body class="authBody">
+  <div class="authWrap">
+    <div class="authCard">
+
+      <div class="authBrand">
+        <img src="images/logo.png" alt="Hospify logo" class="logo">
+        <div class="brandText">
+          <h1>HOSPI <span>FY</span></h1>
+          <p class="muted">Login or register to enter Hospify.</p>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab on" data-tab="login" type="button">Login</button>
+        <button class="tab" data-tab="register" type="button">Register</button>
+      </div>
+
+      <form id="loginForm" class="form">
+        <label>Email</label>
+        <input id="loginEmail" type="email" placeholder="you@email.com" required />
+
+        <label>Password</label>
+        <div class="passwordWrap">
+            <input id="loginPass" type="password" placeholder="••••••••" required />
+            <button
+                type="button"
+                class="togglePass"
+                data-toggle="password"
+                aria-label="Toggle password visibility"
+            >👁</button>
+        </div>
+
+        <button class="btn primary full" type="submit">Login</button>
+        <p class="hint muted">Demo Authentication</p>
+      </form>
+
+      <form id="registerForm" class="form hidden">
+        <label>Email</label>
+        <input id="regEmail" type="email" placeholder="you@email.com" required />
+
+        <label>Password</label>
+            <div class="passwordWrap">
+                <input id="regPass" type="password" placeholder="Min 8 chars, Aa1!" required />
+                <button
+                    type="button"
+                    class="togglePass"
+                    data-toggle="password"
+                    aria-label="Toggle password visibility"
+                >👁</button>
+            </div>
+
+        <label>Date of birth</label>
+        <input id="regDob" type="date" required />
+
+        <label>Phone number</label>
+        <input id="regPhone" type="tel" placeholder="+44 7xxx xxx xxx" required />
+
+        <button class="btn primary full" type="submit">Create account</button>
+        <p class="hint muted">After register, login with same email/password.</p>
+      </form>
+
+
+      <div id="authMsg" class="msg" aria-live="polite"></div>
+
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
