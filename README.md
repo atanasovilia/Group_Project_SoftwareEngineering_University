@@ -26,6 +26,17 @@ Porject developers:
 <li>Denis Citu</li>
 </ol>
 
+# Tools Software
+- Frontend: HTML + CSS + JS
+    
+- Backend: Node.js
+    
+- Database: MySQL
+    
+- Version control: GitHub
+
+
+
 # Introduction
 # Sprint 1 - Allocation 
 
