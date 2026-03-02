@@ -2,8 +2,10 @@
   "name": "group_project_softwareengineering_university",
   "version": "1.0.0",
   "description": "<p>As a Software Engineer recruited to work in a team of up to five new developers, you have been assigned the task of developing some new products.<br>\r Over three sprints your team will develop three new products as part of a portfolio.\r You are required to work using the Agile Framework, Scrum. User stories will be\r provided but the development team will need to estimate the stories, prioritise\r the backlog and produce a sprint backlog from the product backlog.<br>\r The timetable for the class tutorial sessions and presentations is given below.\r Please build your applications week by week and refer to the marking\r scheme/rubric and make sure that you do not miss any tutorial sessions. You\r are encouraged to use inclusive tools for team meetings outside of class such\r as Blackboard Collaborate, Microsoft Teams, Zoom(www.zoom.us), Skype\r (www.skype.com) or any other social tool that will enable cohesive group\r working such as Discord.<br>\r You will be graded each ’Sprint’ on the work you have produced at each sprint\r review, you are required to record your current product backlog of user stories,\r prioritised and estimated, your sprint backlog and a link to your projects GitHub.\r After the third sprint your individual grade will be awarded based on the ‘Self\r and Peer assessment of Group Collaboration’ form accompanying this\r assessment brief that you must fill out.</p>",
-  "main": "index.js",
+  "main": "Database/server.js",
   "scripts": {
+    "start": "node Database/server.js",
+    "dev": "nodemon Database/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,10 +21,11 @@
   },
   "homepage": "https://github.com/atanasovilia/Group_Project_SoftwareEngineering_University#readme",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "mysql2": "^3.17.2"
+    "mysql2": "^3.18.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
