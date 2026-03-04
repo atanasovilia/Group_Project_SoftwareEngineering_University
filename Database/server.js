@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 const pool = require('./db');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 const PORT = Number(process.env.PORT || 3000);
@@ -54,4 +56,46 @@ app.post('/register', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email and password are required' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const [rows] = await pool.query(
+      'SELECT id, name, email, password_hash, role, created_at FROM users WHERE email = ? LIMIT 1',
+      [normalizedEmail]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = rows[0];
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('POST /login failed:', error.message);
+    res.status(500).json({ error: 'Failed to login' });
+  }
 });
