@@ -10,6 +10,17 @@ app.use(express.json());
 const PORT = Number(process.env.PORT || 3000);
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API is running',
+    endpoints: {
+      users: 'GET /users',
+      register: 'POST /register',
+      login: 'POST /login',
+    },
+  });
+});
+
 app.get('/users', async (req, res) => {
   try {
     const [rows] = await pool.query(
