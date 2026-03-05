@@ -1,6 +1,11 @@
+// Import MySQL client that supports async/await via promises.
 const mysql = require('mysql2/promise');
+// Path is used to build an absolute path to the local .env file.
 const path = require('path');
+
+// Load environment variables from the project root if available.
 require('dotenv').config();
+// Also load environment variables from Database/.env (useful for this folder-based setup).
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 function getSslConfig() {
