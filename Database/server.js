@@ -4,20 +4,40 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 // CORS allows frontend pages (different origin) to call this API.
 const cors = require('cors');
-// Shared MySQL pool from db module.
+const path = require('path');
 const pool = require('./db');
 
 // Create Express application instance.
 const app = express();
-// Enable Cross-Origin Resource Sharing.
-app.use(cors());
-// Parse incoming JSON request bodies.
+const HOST = process.env.HOST || '0.0.0.0';
+const rawCorsOrigins = process.env.CORS_ORIGINS || '*';
+const allowedOrigins = rawCorsOrigins
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions =
+  allowedOrigins.length === 1 && allowedOrigins[0] === '*'
+    ? {}
+    : {
+        origin(origin, callback) {
+          // Allow server-to-server or curl requests with no Origin header.
+          if (!origin) return callback(null, true);
+          if (allowedOrigins.includes(origin)) return callback(null, true);
+          return callback(new Error('CORS origin not allowed'));
+        },
+      };
+
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../Prototype')));
 
 // API listening port (defaults to 3000 for local development).
 const PORT = Number(process.env.PORT || 3000);
 // Cost factor for bcrypt hashing (higher = slower + stronger).
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+const VALID_GENDERS = new Set(['male', 'female', 'other', 'prefer_not_to_say']);
+const VALID_BLOOD_TYPES = new Set(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
 
 app.get('/', (req, res) => {
   res.json({
@@ -84,20 +104,11 @@ app.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    // Log unexpected errors.
-    console.error('POST /register failed:', error.message);
-    // Generic failure response.
+    console.error('POST /register failed:', error);
     res.status(500).json({ error: 'Failed to register user' });
   }
 });
 
-// Start HTTP server.
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-
-// POST /login
-// Authenticates user using email + password.
 app.post('/login', async (req, res) => {
   try {
     // Extract credentials from request body.
@@ -149,4 +160,204 @@ app.post('/login', async (req, res) => {
     // Generic failure response.
     res.status(500).json({ error: 'Failed to login' });
   }
+});
+
+app.get('/medical-records', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT
+        mr.id,
+        mr.user_id,
+        u.name AS user_name,
+        u.email AS user_email,
+        mr.date_of_birth,
+        mr.gender,
+        mr.phone,
+        mr.address,
+        mr.blood_type,
+        mr.allergies,
+        mr.diagnosis,
+        mr.medications,
+        mr.emergency_contact_name,
+        mr.emergency_contact_phone,
+        mr.created_at,
+        mr.updated_at
+      FROM medical_records mr
+      JOIN users u ON u.id = mr.user_id
+      ORDER BY mr.user_id ASC`
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('GET /medical-records failed:', error.message);
+    res.status(500).json({ error: 'Failed to fetch medical records' });
+  }
+});
+
+app.get('/medical-records/:userId', async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'userId must be a positive integer' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT
+        mr.id,
+        mr.user_id,
+        u.name AS user_name,
+        u.email AS user_email,
+        mr.date_of_birth,
+        mr.gender,
+        mr.phone,
+        mr.address,
+        mr.blood_type,
+        mr.allergies,
+        mr.diagnosis,
+        mr.medications,
+        mr.emergency_contact_name,
+        mr.emergency_contact_phone,
+        mr.created_at,
+        mr.updated_at
+      FROM medical_records mr
+      JOIN users u ON u.id = mr.user_id
+      WHERE mr.user_id = ?
+      LIMIT 1`,
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Medical record not found for this userId' });
+    }
+
+    return res.json(rows[0]);
+  } catch (error) {
+    console.error('GET /medical-records/:userId failed:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch medical record' });
+  }
+});
+
+app.put('/medical-records/:userId', async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'userId must be a positive integer' });
+    }
+
+    const [userRows] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (userRows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const input = req.body || {};
+    const allowedFields = [
+      'date_of_birth',
+      'gender',
+      'phone',
+      'address',
+      'blood_type',
+      'allergies',
+      'diagnosis',
+      'medications',
+      'emergency_contact_name',
+      'emergency_contact_phone',
+    ];
+
+    const providedFields = allowedFields.filter((field) => Object.hasOwn(input, field));
+    if (providedFields.length === 0) {
+      return res
+        .status(400)
+        .json({ error: `Provide at least one field: ${allowedFields.join(', ')}` });
+    }
+
+    if (Object.hasOwn(input, 'gender') && input.gender != null && !VALID_GENDERS.has(input.gender)) {
+      return res.status(400).json({ error: 'Invalid gender value' });
+    }
+
+    if (
+      Object.hasOwn(input, 'blood_type') &&
+      input.blood_type != null &&
+      !VALID_BLOOD_TYPES.has(input.blood_type)
+    ) {
+      return res.status(400).json({ error: 'Invalid blood_type value' });
+    }
+
+    if (Object.hasOwn(input, 'date_of_birth') && input.date_of_birth != null) {
+      const dob = String(input.date_of_birth);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+        return res.status(400).json({ error: 'date_of_birth must be YYYY-MM-DD' });
+      }
+    }
+
+    const [existingRows] = await pool.query(
+      'SELECT id FROM medical_records WHERE user_id = ? LIMIT 1',
+      [userId]
+    );
+    const recordExists = existingRows.length > 0;
+
+    if (!recordExists && !Object.hasOwn(input, 'date_of_birth')) {
+      return res.status(400).json({
+        error: 'date_of_birth is required when creating a medical record for a user',
+      });
+    }
+
+    if (recordExists) {
+      const setClause = providedFields.map((field) => `${field} = ?`).join(', ');
+      const values = providedFields.map((field) => input[field]);
+
+      await pool.query(
+        `UPDATE medical_records
+         SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = ?`,
+        [...values, userId]
+      );
+    } else {
+      const insertFields = ['user_id', ...providedFields];
+      const placeholders = insertFields.map(() => '?').join(', ');
+      const values = [userId, ...providedFields.map((field) => input[field])];
+
+      await pool.query(
+        `INSERT INTO medical_records (${insertFields.join(', ')})
+         VALUES (${placeholders})`,
+        values
+      );
+    }
+
+    const [resultRows] = await pool.query(
+      `SELECT
+        mr.id,
+        mr.user_id,
+        u.name AS user_name,
+        u.email AS user_email,
+        mr.date_of_birth,
+        mr.gender,
+        mr.phone,
+        mr.address,
+        mr.blood_type,
+        mr.allergies,
+        mr.diagnosis,
+        mr.medications,
+        mr.emergency_contact_name,
+        mr.emergency_contact_phone,
+        mr.created_at,
+        mr.updated_at
+      FROM medical_records mr
+      JOIN users u ON u.id = mr.user_id
+      WHERE mr.user_id = ?
+      LIMIT 1`,
+      [userId]
+    );
+
+    return res.json({
+      message: 'Medical record saved successfully',
+      record: resultRows[0],
+    });
+  } catch (error) {
+    console.error('PUT /medical-records/:userId failed:', error.message);
+    return res.status(500).json({ error: 'Failed to save medical record' });
+  }
+});
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
 });

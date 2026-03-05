@@ -8,33 +8,51 @@ require('dotenv').config();
 // Also load environment variables from Database/.env (useful for this folder-based setup).
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
-// Required variables for creating a DB connection.
-const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-// Find any missing required env variables.
-const missingVars = requiredVars.filter((key) => !process.env[key]);
+function getSslConfig() {
+  const sslEnabled = String(process.env.DB_SSL || '').toLowerCase() === 'true';
+  if (!sslEnabled) return undefined;
 
-// Stop startup early with a clear error if env config is incomplete.
-if (missingVars.length > 0) {
-  throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  return {
+    rejectUnauthorized:
+      String(process.env.DB_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() !== 'false',
+  };
 }
 
-// Create a reusable connection pool for efficient DB access.
-const pool = mysql.createPool({
-  // Database host (e.g., localhost or hosted DB endpoint).
-  host: process.env.DB_HOST,
-  // Parse DB port from env and default to 3306 when not set.
-  port: Number(process.env.DB_PORT || 3306),
-  // Database username.
-  user: process.env.DB_USER,
-  // Database password.
-  password: process.env.DB_PASSWORD,
-  // Target database/schema name.
-  database: process.env.DB_NAME,
-  // Queue connection requests when pool is busy.
+const poolBaseConfig = {
   waitForConnections: true,
-  // Maximum simultaneous DB connections.
-  connectionLimit: 10,
-});
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+};
 
-// Export the pool so routes can run queries.
+let poolConfig;
+
+if (process.env.DATABASE_URL) {
+  poolConfig = {
+    uri: process.env.DATABASE_URL,
+    ssl: getSslConfig(),
+    ...poolBaseConfig,
+  };
+} else {
+  const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+  const missingVars = requiredVars.filter((key) => !process.env[key]);
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missingVars.join(', ')}. ` +
+        'Set DATABASE_URL or the DB_HOST/DB_USER/DB_PASSWORD/DB_NAME variables.'
+    );
+  }
+
+  poolConfig = {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    ssl: getSslConfig(),
+    ...poolBaseConfig,
+  };
+}
+
+const pool = mysql.createPool(poolConfig);
+
 module.exports = pool;
