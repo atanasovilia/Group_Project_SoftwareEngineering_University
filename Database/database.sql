@@ -1,6 +1,10 @@
 CREATE DATABASE IF NOT EXISTS group_project;
 USE group_project;
 
+CREATE USER IF NOT EXISTS 'app_user'@'localhost' IDENTIFIED BY 'YourStrongPassword123!';
+GRANT ALL PRIVILEGES ON group_project.* TO 'app_user'@'localhost';
+FLUSH PRIVILEGES;
+
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -27,6 +31,14 @@ SET @sql := IF(
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+INSERT INTO users (name, email, password_hash, role)
+SELECT 'Admin', 'admin@hospify.local', '$2b$10$pOnWNjuVu/4yrPFm8xSYOuzvMgiAXir4zI3rqTAq9Z..eB39t/ATe', 'admin'
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM users
+  WHERE email = 'admin@hospify.local'
+);
 
 SET @role_exists := (
   SELECT COUNT(1)
