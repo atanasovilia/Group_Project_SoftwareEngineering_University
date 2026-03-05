@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node Database/server.js",
     "dev": "nodemon Database/server.js",
+    "db:ping": "node scripts/test_db_connection.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
