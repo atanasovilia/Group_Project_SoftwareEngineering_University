@@ -252,9 +252,9 @@
 
   <main>
     <div class="dashboard-grid">
-      <div class="card calendar">Calendar</div>
-      <div class="card appointments">Appointments</div>
-      <div class="card records">Records</div>
+      <div class="card calendar" id="goCalendar">Calendar</div>
+      <div class="card appointments" id="goAppointments">Appointments</div>
+      <div class="card records" id="goRecords">Records</div>
     </div>
   </main>
 
@@ -262,5 +262,18 @@
     © 2026 Personal Health Portal • All rights reserved
   </footer>
 
+  <script>
+    document.getElementById("goAppointments")?.addEventListener("click", () => {
+      window.location.href = "doctor.html";
+    });
+
+    document.getElementById("goCalendar")?.addEventListener("click", () => {
+      window.location.href = "calendar.html";
+    });
+
+    document.getElementById("goRecords")?.addEventListener("click", () => {
+      window.location.href = "records.html";
+    });
+  </script>
 </body>
 </html>

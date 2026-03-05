@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Booking system page</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" type="button" aria-label="Open menu">☰</button>
+
+    <div class="titleWrap">
+      <h1 class="pageTitle">Booking system page</h1>
+      <div class="pageSub">Doctor availability and appointment booking</div>
+    </div>
+
+    <div class="topRight">
+      <div class="logoWrap" aria-label="Logo">
+        <img class="logoImg" src="../images/logo.png" alt="logo" />
+      </div>
+    </div>
+  </header>
+
+  <!-- OFF-CANVAS SIDE MENU -->
+  <aside class="sideMenu" id="sideMenu" aria-label="Side menu">
+    <div class="sideMenuHeader">
+      <div class="sideMenuTitle">Menu</div>
+      <button class="closeBtn" id="closeMenuBtn" type="button" aria-label="Close menu">✕</button>
+    </div>
+
+    <nav class="sideMenuLinks">
+      <a href="home.html">Personal Portal</a>
+      <a class="active" href="doctor.html">Doctor Availability</a>
+    </nav>
+  </aside>
+
+  <div class="menuOverlay" id="menuOverlay" aria-hidden="true"></div>
+
+  <main class="page">
+    <section class="layout">
+
+      <!-- LEFT: Doctors -->
+      <aside class="leftDoctors">
+        <div class="leftHeader">
+          <h2>Doctors</h2>
+          <button class="btn ghost" id="refreshDoctorsBtn" type="button">Refresh</button>
+        </div>
+
+        <input id="doctorSearch" class="search" type="text" placeholder="Search doctors…" />
+
+        <div id="doctorList" class="doctorList" aria-live="polite"></div>
+      </aside>
+
+      <!-- CENTER: Panels -->
+      <section class="centerPanels">
+
+        <!-- Day of the week -->
+        <section class="panel panelBig">
+          <div class="panelTitle">Day of the week</div>
+
+          <div class="dayRow">
+            <div class="dayBlock">
+              <label for="datePicker">Select date</label>
+              <input id="datePicker" type="date" />
+            </div>
+
+            <div class="dayBlock">
+              <label>Selected doctor</label>
+              <div id="selectedDoctorLabel" class="pill">None</div>
+            </div>
+
+            <div class="dayBlock">
+              <label>Day</label>
+              <div id="selectedDayLabel" class="pill">—</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Time slots -->
+        <section class="panel panelBig">
+          <div class="panelTitle">Time slots</div>
+
+          <div id="slotGrid" class="slotGrid" aria-live="polite"></div>
+
+          <div class="slotFooter">
+            <div class="pill" id="selectedSlotPill">Selected slot: None</div>
+            <button class="btn primary" id="bookBtn" type="button" disabled>Book</button>
+          </div>
+        </section>
+
+        <!-- Information -->
+        <section class="panel panelBig">
+          <div class="panelTitle">Information</div>
+
+          <div id="statusMsg" class="status" aria-live="polite"></div>
+
+          <div class="infoGrid">
+            <div class="infoItem">
+              <div class="infoLabel">Doctor</div>
+              <div class="infoValue" id="infoDoctor">—</div>
+            </div>
+            <div class="infoItem">
+              <div class="infoLabel">Date</div>
+              <div class="infoValue" id="infoDate">—</div>
+            </div>
+            <div class="infoItem">
+              <div class="infoLabel">Time</div>
+              <div class="infoValue" id="infoTime">—</div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- RIGHT: Invoice -->
+      <aside class="invoicePanel">
+        <div class="invoiceHeader">Invoice</div>
+
+        <div class="invoiceBody">
+          <div class="invoiceTitle">Appointment invoice information</div>
+
+          <div class="invoiceRow">
+            <span>Doctor</span>
+            <strong id="invDoctor">—</strong>
+          </div>
+          <div class="invoiceRow">
+            <span>Date</span>
+            <strong id="invDate">—</strong>
+          </div>
+          <div class="invoiceRow">
+            <span>Time</span>
+            <strong id="invTime">—</strong>
+          </div>
+          <div class="invoiceRow">
+            <span>Status</span>
+            <strong id="invStatus">Not booked</strong>
+          </div>
+        </div>
+      </aside>
+
+    </section>
+  </main>
+
+  <footer class="footer">Footer</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
