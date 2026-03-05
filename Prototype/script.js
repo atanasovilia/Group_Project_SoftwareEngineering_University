@@ -154,3 +154,15 @@ loginForm?.addEventListener('submit', async (event) => {
 
 // Default view when page first loads.
 switchTab('login');
+
+document.getElementById("goAppointments")?.addEventListener("click", () => {
+      window.location.href = "doctor.html";
+    });
+
+    document.getElementById("goCalendar")?.addEventListener("click", () => {
+      window.location.href = "calendar.html";
+    });
+
+    document.getElementById("goRecords")?.addEventListener("click", () => {
+      window.location.href = "records.html";
+    });
