@@ -23,26 +23,28 @@ const poolBaseConfig = {
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
 };
 
-let poolConfig;
+function resolvePoolConfig() {
+  if (process.env.DATABASE_URL) {
+    return {
+      uri: process.env.DATABASE_URL,
+      ssl: getSslConfig(),
+      ...poolBaseConfig,
+    };
+  }
 
-if (process.env.DATABASE_URL) {
-  poolConfig = {
-    uri: process.env.DATABASE_URL,
-    ssl: getSslConfig(),
-    ...poolBaseConfig,
-  };
-} else {
   const requiredVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
   const missingVars = requiredVars.filter((key) => !process.env[key]);
 
   if (missingVars.length > 0) {
-    throw new Error(
+    const error = new Error(
       `Missing required environment variables: ${missingVars.join(', ')}. ` +
         'Set DATABASE_URL or the DB_HOST/DB_USER/DB_PASSWORD/DB_NAME variables.'
     );
+    error.code = 'DB_CONFIG_ERROR';
+    throw error;
   }
 
-  poolConfig = {
+  return {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER,
@@ -53,6 +55,17 @@ if (process.env.DATABASE_URL) {
   };
 }
 
-const pool = mysql.createPool(poolConfig);
+let pool;
 
-module.exports = pool;
+function getPool() {
+  if (!pool) {
+    pool = mysql.createPool(resolvePoolConfig());
+  }
+  return pool;
+}
+
+async function query(sql, values) {
+  return getPool().query(sql, values);
+}
+
+module.exports = { query };
