@@ -1,5 +1,10 @@
 const API_BASE_URL = window.location.origin;
 
+function logoutUser() {
+	localStorage.removeItem('authUser');
+	window.location.href = 'index.html';
+}
+
 // Cache common DOM references used by auth UI.
 const tabs = document.querySelectorAll('.tab');
 const loginForm = document.getElementById('loginForm');
@@ -154,6 +159,10 @@ loginForm?.addEventListener('submit', async (event) => {
 
 // Default view when page first loads.
 switchTab('login');
+
+document.querySelectorAll('.logout-btn').forEach((button) => {
+	button.addEventListener('click', logoutUser);
+});
 
 document.getElementById("goAppointments")?.addEventListener("click", () => {
       window.location.href = "doctor.html";
