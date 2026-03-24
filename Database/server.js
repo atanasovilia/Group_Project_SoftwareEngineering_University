@@ -9,6 +9,7 @@ const pool = require('./db');
 
 // Create Express application instance.
 const app = express();
+app.disable('x-powered-by');
 const HOST = process.env.HOST || '0.0.0.0';
 const rawCorsOrigins = process.env.CORS_ORIGINS || '*';
 const allowedOrigins = rawCorsOrigins
@@ -30,6 +31,20 @@ const corsOptions =
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Defense-in-depth: never serve dotfiles, env files, or SQL dumps via HTTP.
+app.use((req, res, next) => {
+  const requestPath = String(req.path || '').toLowerCase();
+  if (
+    requestPath.startsWith('/.') ||
+    requestPath.includes('.env') ||
+    requestPath.endsWith('.sql')
+  ) {
+    return res.status(404).send('Not found');
+  }
+  return next();
+});
+
 app.use(express.static(path.join(__dirname, '../Prototype')));
 
 // API listening port (defaults to 3000 for local development).
@@ -358,6 +373,10 @@ app.put('/medical-records/:userId', async (req, res) => {
   }
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  });
+}
+
+module.exports = app;
