@@ -1,0 +1,18 @@
+# Never upload local secrets or local-only files
+.env
+.env.*
+Database/.env
+
+# Source-control and editor metadata
+.git/
+.vscode/
+.idea/
+
+# Local development artifacts
+node_modules/
+*.log
+
+# SQL/setup docs not needed at runtime
+Database/*.sql
+scripts/
+*.md
