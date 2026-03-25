@@ -277,6 +277,28 @@ function renderMedicalRecord(record) {
   setText('field-updated-at', formatDate(record.updated_at, true));
 }
 
+function populateMedicalRecordForm(record) {
+  const values = {
+    'input-dob': record?.date_of_birth ? String(record.date_of_birth).slice(0, 10) : '',
+    'input-gender': record?.gender || '',
+    'input-phone': record?.phone || '',
+    'input-address': record?.address || '',
+    'input-blood-type': record?.blood_type || '',
+    'input-allergies': record?.allergies || '',
+    'input-diagnosis': record?.diagnosis || '',
+    'input-medications': record?.medications || '',
+    'input-emergency-name': record?.emergency_contact_name || '',
+    'input-emergency-phone': record?.emergency_contact_phone || '',
+  };
+
+  Object.entries(values).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.value = value;
+    }
+  });
+}
+
 function clearMedicalRecord() {
   [
     'field-name',
@@ -296,9 +318,27 @@ function clearMedicalRecord() {
   ].forEach((id) => setText(id, '-'));
 }
 
+function getMedicalRecordPayload() {
+  return {
+    date_of_birth: document.getElementById('input-dob')?.value?.trim() || '',
+    gender: document.getElementById('input-gender')?.value || null,
+    phone: document.getElementById('input-phone')?.value?.trim() || null,
+    address: document.getElementById('input-address')?.value?.trim() || null,
+    blood_type: document.getElementById('input-blood-type')?.value || null,
+    allergies: document.getElementById('input-allergies')?.value?.trim() || null,
+    diagnosis: document.getElementById('input-diagnosis')?.value?.trim() || null,
+    medications: document.getElementById('input-medications')?.value?.trim() || null,
+    emergency_contact_name: document.getElementById('input-emergency-name')?.value?.trim() || null,
+    emergency_contact_phone: document.getElementById('input-emergency-phone')?.value?.trim() || null,
+  };
+}
+
 function setupMedicalRecordsPage() {
   const refreshButton = document.getElementById('refreshRecordBtn');
-  if (!refreshButton) {
+  const recordForm = document.getElementById('recordForm');
+  const saveButton = document.getElementById('saveRecordBtn');
+  const resetButton = document.getElementById('resetRecordFormBtn');
+  if (!refreshButton || !recordForm || !saveButton || !resetButton) {
     return;
   }
 
@@ -308,27 +348,36 @@ function setupMedicalRecordsPage() {
     return;
   }
 
+  let currentRecord = null;
+
   async function loadMedicalRecord() {
     showStatus('recordStatus', 'Loading medical record...', null);
     setText('recordUserName', authUser.name || 'Patient');
     setText('recordUserMeta', `Signed in as ${authUser.email || 'unknown user'}`);
     refreshButton.disabled = true;
+    saveButton.disabled = true;
 
     try {
       const response = await fetch(`${API_BASE_URL}/medical-records/${authUser.id}`);
       const data = await response.json();
 
       if (response.status === 404) {
+        currentRecord = null;
         clearMedicalRecord();
+        populateMedicalRecordForm(null);
         showStatus(
           'recordStatus',
-          'No medical record exists yet for this user in the database.',
+          'No medical record exists yet. Please complete the form below to create one.',
           'err'
         );
         setText('recordUserName', authUser.name || 'Patient');
         setText(
           'recordUserMeta',
           `${authUser.email || '-'} | User #${authUser.id}`
+        );
+        setText(
+          'recordFormMeta',
+          'No record was found for this account. Complete the form below to create your first medical record.'
         );
         return;
       }
@@ -337,21 +386,95 @@ function setupMedicalRecordsPage() {
         throw new Error(data.error || 'Failed to fetch medical record');
       }
 
+      currentRecord = data;
       renderMedicalRecord(data);
+      populateMedicalRecordForm(data);
+      setText(
+        'recordFormMeta',
+        'Your existing medical record is loaded below. Edit any field and save to update the database.'
+      );
       showStatus('recordStatus', 'Medical record loaded from TiDB.', 'ok');
     } catch (error) {
+      currentRecord = null;
       clearMedicalRecord();
+      populateMedicalRecordForm(null);
       showStatus(
         'recordStatus',
         error.message || 'Unable to load medical record.',
         'err'
       );
+      setText(
+        'recordFormMeta',
+        'The current record could not be loaded. You can still try entering your information and saving it.'
+      );
     } finally {
+      refreshButton.disabled = false;
+      saveButton.disabled = false;
+    }
+  }
+
+  async function saveMedicalRecord(event) {
+    event.preventDefault();
+
+    const payload = getMedicalRecordPayload();
+    if (!payload.date_of_birth) {
+      showStatus('recordStatus', 'Date of birth is required before saving.', 'err');
+      document.getElementById('input-dob')?.focus();
+      return;
+    }
+
+    saveButton.disabled = true;
+    refreshButton.disabled = true;
+    showStatus('recordStatus', 'Saving medical record...', null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/medical-records/${authUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save medical record');
+      }
+
+      currentRecord = data.record || null;
+      if (currentRecord) {
+        renderMedicalRecord(currentRecord);
+        populateMedicalRecordForm(currentRecord);
+      }
+
+      setText(
+        'recordFormMeta',
+        'Your record is saved. You can come back and update these details at any time.'
+      );
+      showStatus('recordStatus', data.message || 'Medical record saved successfully.', 'ok');
+    } catch (error) {
+      showStatus(
+        'recordStatus',
+        error.message || 'Unable to save medical record.',
+        'err'
+      );
+    } finally {
+      saveButton.disabled = false;
       refreshButton.disabled = false;
     }
   }
 
+  function resetMedicalRecordForm() {
+    populateMedicalRecordForm(currentRecord);
+    if (currentRecord) {
+      showStatus('recordStatus', 'Form reset to the saved medical record.', 'ok');
+    } else {
+      recordForm.reset();
+      showStatus('recordStatus', 'Form cleared. Enter your details to create a record.', null);
+    }
+  }
+
   refreshButton.addEventListener('click', loadMedicalRecord);
+  recordForm.addEventListener('submit', saveMedicalRecord);
+  resetButton.addEventListener('click', resetMedicalRecordForm);
   loadMedicalRecord();
 }
 
