@@ -342,12 +342,25 @@ app.get('/calendar/day', async (req, res) => {
       [doctorId, dayOfWeek]
     );
 
+    // Get booked appointments for this doctor on this date
+    const [bookedSlots] = await pool.query(
+      `SELECT TIME_FORMAT(appointment_time, '%H:%i') as appointment_time
+       FROM appointments
+       WHERE doctor_id = ?
+         AND appointment_date = ?
+         AND status = 'confirmed'`,
+      [doctorId, formatDateOnly(selectedDate)]
+    );
+
+    const bookedTimes = new Set(bookedSlots.map(row => row.appointment_time));
+    const slots = buildTimeSlots(slotRows).filter(slot => !bookedTimes.has(slot.start_time));
+
     return res.json({
       doctor: doctorRows[0],
       date: formatDateOnly(selectedDate),
       day_of_week: dayOfWeek,
       ranges: slotRows,
-      slots: buildTimeSlots(slotRows),
+      slots: slots,
     });
   } catch (error) {
     console.error('GET /calendar/day failed:', error.message);
@@ -429,6 +442,33 @@ app.get('/calendar/weekly', async (req, res) => {
         slot_capacity: slot.slot_capacity,
       });
       slotsByDoctorDay.set(key, existing);
+    }
+
+    // Get booked appointments for the week
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    const bookedParams = [];
+    let bookedDoctorFilter = '';
+    if (selectedDoctorId) {
+      bookedDoctorFilter = ' AND doctor_id = ?';
+      bookedParams.push(selectedDoctorId);
+    }
+
+    const [bookedAppointments] = await pool.query(
+      `SELECT doctor_id, appointment_date, appointment_time
+       FROM appointments
+       WHERE appointment_date >= ?
+         AND appointment_date <= ?
+         AND status = 'confirmed'
+         ${bookedDoctorFilter}`,
+      [formatDateOnly(weekStart), formatDateOnly(weekEnd), ...bookedParams]
+    );
+
+    // Build a set of booked slot keys
+    const bookedSlotKeys = new Set();
+    for (const appointment of bookedAppointments) {
+      bookedSlotKeys.add(`${appointment.doctor_id}-${appointment.appointment_date}-${appointment.appointment_time}`);
     }
 
     const doctors = doctorRows.map((doctor) => {
@@ -750,6 +790,84 @@ app.put('/medical-records/:userId', async (req, res) => {
   } catch (error) {
     console.error('PUT /medical-records/:userId failed:', error.message);
     return res.status(500).json({ error: 'Failed to save medical record' });
+  }
+});
+
+app.post('/appointments', async (req, res) => {
+  try {
+    const { user_id, doctor_id, appointment_date, appointment_time } = req.body;
+
+    // Validation
+    if (!user_id || !doctor_id || !appointment_date || !appointment_time) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const userId = Number(user_id);
+    const doctorId = Number(doctor_id);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'user_id must be a positive integer' });
+    }
+
+    if (!Number.isInteger(doctorId) || doctorId <= 0) {
+      return res.status(400).json({ error: 'doctor_id must be a positive integer' });
+    }
+
+    // Validate date format YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(appointment_date))) {
+      return res.status(400).json({ error: 'appointment_date must be YYYY-MM-DD' });
+    }
+
+    // Validate time format HH:MM
+    if (!/^\d{2}:\d{2}$/.test(String(appointment_time))) {
+      return res.status(400).json({ error: 'appointment_time must be HH:MM' });
+    }
+
+    // Check if user exists
+    const [userRows] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (userRows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if doctor exists and is active
+    const [doctorRows] = await pool.query(
+      'SELECT id FROM doctors WHERE id = ? AND status = "active" LIMIT 1',
+      [doctorId]
+    );
+    if (doctorRows.length === 0) {
+      return res.status(404).json({ error: 'Doctor not found or is inactive' });
+    }
+
+    // Check if appointment already booked
+    const [existingAppointment] = await pool.query(
+      `SELECT id FROM appointments
+       WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? AND status = 'confirmed'
+       LIMIT 1`,
+      [doctorId, appointment_date, appointment_time]
+    );
+    if (existingAppointment.length > 0) {
+      return res.status(409).json({ error: 'This appointment slot is already booked' });
+    }
+
+    // Create appointment
+    const [result] = await pool.query(
+      `INSERT INTO appointments (user_id, doctor_id, appointment_date, appointment_time, status)
+       VALUES (?, ?, ?, ?, 'confirmed')`,
+      [userId, doctorId, appointment_date, appointment_time]
+    );
+
+    return res.status(201).json({
+      id: result.insertId,
+      user_id: userId,
+      doctor_id: doctorId,
+      appointment_date,
+      appointment_time,
+      status: 'confirmed',
+      created_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('POST /appointments failed:', error.message);
+    return res.status(500).json({ error: 'Failed to create appointment' });
   }
 });
 

@@ -527,6 +527,7 @@ function setupHomeBookingDashboard() {
 	const selectedDoctorText = document.getElementById('selectedDoctorText');
 	const selectedDateText = document.getElementById('selectedDateText');
 	const selectedTimeText = document.getElementById('selectedTimeText');
+	const bookAppointmentBtn = document.getElementById('bookAppointmentBtn');
 	const hamburger = document.getElementById('hamburger');
 	const sideMenu = document.getElementById('sideMenu');
 	const closeMenuBtn = document.getElementById('closeMenuBtn');
@@ -552,7 +553,7 @@ function setupHomeBookingDashboard() {
 		doctors: [],
 		selectedDoctorId: '',
 		selectedDate: '',
-		selectedSlot: '',
+		selectedSlot: null,
 		currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
 	};
 
@@ -578,7 +579,78 @@ function setupHomeBookingDashboard() {
 		const doctor = getSelectedDoctor();
 		selectedDoctorText.textContent = doctor ? `${doctor.full_name} (${doctor.specialty})` : 'None selected';
 		selectedDateText.textContent = state.selectedDate || 'None selected';
-		selectedTimeText.textContent = state.selectedSlot || 'None selected';
+		selectedTimeText.textContent = state.selectedSlot ? state.selectedSlot.label : 'None selected';
+		updateBookButtonState();
+	}
+
+	function updateBookButtonState() {
+		const isComplete = state.selectedDoctorId && state.selectedDate && state.selectedSlot;
+		if (bookAppointmentBtn) {
+			bookAppointmentBtn.disabled = !isComplete;
+		}
+	}
+
+	async function submitBooking() {
+		const doctor = getSelectedDoctor();
+		if (!doctor || !state.selectedDate || !state.selectedSlot) {
+			renderStatusMessage(statusMsg, 'Please select a doctor, date, and time.', 'err');
+			return;
+		}
+
+		const authUser = getAuthUser();
+		if (!authUser) {
+			renderStatusMessage(statusMsg, 'Please log in to book an appointment.', 'err');
+			return;
+		}
+
+		bookAppointmentBtn.disabled = true;
+		renderStatusMessage(statusMsg, 'Booking appointment...');
+
+		try {
+			const response = await fetch(`${API_BASE_URL}/appointments`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					user_id: authUser.id,
+					doctor_id: state.selectedDoctorId,
+					appointment_date: state.selectedDate,
+					appointment_time: state.selectedSlot.start_time,
+				}),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				renderStatusMessage(statusMsg, data.error || 'Could not book appointment.', 'err');
+				updateBookButtonState();
+				return;
+			}
+
+			// Show success confirmation
+			renderStatusMessage(
+				statusMsg,
+				`✓ Appointment confirmed with ${doctor.full_name} on ${state.selectedDate} at ${state.selectedSlot.label}`,
+				'ok'
+			);
+
+			// Reset form after a short delay
+			setTimeout(() => {
+				state.selectedDoctorId = '';
+				state.selectedDate = '';
+				state.selectedSlot = null;
+				doctorSelect.value = '';
+				renderDoctorButtons();
+				monthGrid.innerHTML = '<div class="emptyState">Choose a doctor to view availability.</div>';
+				timeSlotGrid.innerHTML = '<div class="emptyState">Choose a doctor first.</div>';
+				updateSummary();
+				renderStatusMessage(statusMsg, '');
+			}, 2000);
+		} catch (error) {
+			renderStatusMessage(statusMsg, 'Could not connect to the booking service.', 'err');
+			updateBookButtonState();
+		}
 	}
 
 	function renderDoctorButtons() {
@@ -650,7 +722,7 @@ function setupHomeBookingDashboard() {
 			if (!button.disabled) {
 				button.addEventListener('click', () => {
 					state.selectedDate = day.iso_date;
-					state.selectedSlot = '';
+					state.selectedSlot = null;
 					updateSummary();
 					loadMonth();
 					loadDaySlots();
@@ -673,11 +745,11 @@ function setupHomeBookingDashboard() {
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = `timeSlotButton${
-				slot.label === state.selectedSlot ? ' selected' : ''
+				slot === state.selectedSlot ? ' selected' : ''
 			}`;
 			button.textContent = slot.label;
 			button.addEventListener('click', () => {
-				state.selectedSlot = slot.label;
+				state.selectedSlot = slot;
 				updateSummary();
 				renderTimeSlots(slots);
 			});
@@ -717,7 +789,7 @@ function setupHomeBookingDashboard() {
 			) {
 				const firstAvailable = data.days.find((day) => day.is_current_month && day.status === 'available');
 				state.selectedDate = firstAvailable ? firstAvailable.iso_date : '';
-				state.selectedSlot = '';
+				state.selectedSlot = null;
 				updateSummary();
 				if (state.selectedDate) {
 					await loadDaySlots();
@@ -757,7 +829,7 @@ function setupHomeBookingDashboard() {
 	async function handleDoctorSelection(doctorId) {
 		state.selectedDoctorId = doctorId ? String(doctorId) : '';
 		state.selectedDate = '';
-		state.selectedSlot = '';
+		state.selectedSlot = null;
 		renderDoctorButtons();
 		updateSummary();
 		await loadMonth();
@@ -770,7 +842,7 @@ function setupHomeBookingDashboard() {
 	monthPrevBtn.addEventListener('click', async () => {
 		state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
 		state.selectedDate = '';
-		state.selectedSlot = '';
+		state.selectedSlot = null;
 		updateSummary();
 		await loadMonth();
 	});
@@ -778,10 +850,14 @@ function setupHomeBookingDashboard() {
 	monthNextBtn.addEventListener('click', async () => {
 		state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1);
 		state.selectedDate = '';
-		state.selectedSlot = '';
+		state.selectedSlot = null;
 		updateSummary();
 		await loadMonth();
 	});
+
+	if (bookAppointmentBtn) {
+		bookAppointmentBtn.addEventListener('click', submitBooking);
+	}
 
 	loadDoctors().then((loaded) => {
 		if (!loaded || state.doctors.length === 0) {
