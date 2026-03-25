@@ -1498,3 +1498,250 @@ cursor:pointer;
 .cancel-btn:hover{
 background:#f7dede;
 }
+
+.topRight{
+display:flex;
+align-items:center;
+gap:12px;
+}
+
+.recordsShell{
+display:flex;
+flex-direction:column;
+gap:18px;
+max-width:1200px;
+margin:0 auto;
+}
+
+.recordsIntro{
+display:flex;
+align-items:flex-start;
+justify-content:space-between;
+gap:16px;
+}
+
+.recordsEyebrow{
+font-size:12px;
+font-weight:800;
+letter-spacing:.14em;
+text-transform:uppercase;
+color:var(--blue-medium);
+margin-bottom:8px;
+}
+
+.recordsHeroName{
+font-size:32px;
+line-height:1.1;
+color:var(--blue-dark);
+margin-bottom:8px;
+}
+
+.recordsHeroMeta{
+font-size:14px;
+color:var(--gray);
+}
+
+.recordsActions{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.recordsGrid{
+display:grid;
+grid-template-columns:repeat(3,minmax(0,1fr));
+gap:18px;
+}
+
+.recordsCard{
+display:flex;
+flex-direction:column;
+gap:16px;
+min-height:100%;
+}
+
+.recordsCardTitle{
+font-size:18px;
+font-weight:800;
+color:var(--blue-dark);
+}
+
+.detailsList{
+display:flex;
+flex-direction:column;
+gap:12px;
+}
+
+.detailRow{
+display:flex;
+flex-direction:column;
+gap:6px;
+padding:12px 14px;
+border-radius:14px;
+background:rgba(255,255,255,.72);
+border:1px solid rgba(0,0,0,.08);
+}
+
+.detailRow dt{
+font-size:12px;
+font-weight:800;
+letter-spacing:.03em;
+text-transform:uppercase;
+color:var(--gray);
+}
+
+.detailRow dd{
+margin:0;
+font-size:15px;
+line-height:1.5;
+font-weight:600;
+color:var(--gray-very-dark);
+word-break:break-word;
+}
+
+.detailRowBlock dd{
+white-space:pre-wrap;
+}
+
+.recordsPills{
+display:grid;
+grid-template-columns:repeat(2,minmax(0,1fr));
+gap:12px;
+}
+
+.recordPill{
+display:flex;
+flex-direction:column;
+gap:6px;
+padding:14px 16px;
+border-radius:16px;
+background:linear-gradient(135deg, rgba(47,128,237,.14), rgba(39,174,96,.10));
+border:1px solid rgba(47,128,237,.14);
+}
+
+.recordPillLabel{
+font-size:12px;
+font-weight:800;
+letter-spacing:.04em;
+text-transform:uppercase;
+color:var(--gray);
+}
+
+.recordPill strong{
+font-size:22px;
+line-height:1.2;
+color:var(--blue-dark);
+}
+
+.recordsFormPanel{
+display:flex;
+flex-direction:column;
+gap:18px;
+}
+
+.recordsFormHeader{
+display:flex;
+align-items:flex-start;
+justify-content:space-between;
+gap:16px;
+}
+
+.recordsFormMeta{
+margin-top:6px;
+font-size:14px;
+line-height:1.5;
+color:var(--gray);
+}
+
+.recordForm{
+display:flex;
+flex-direction:column;
+gap:18px;
+}
+
+.formGrid{
+display:grid;
+grid-template-columns:repeat(2,minmax(0,1fr));
+gap:14px;
+}
+
+.formField{
+display:flex;
+flex-direction:column;
+gap:8px;
+}
+
+.formField span{
+font-size:12px;
+font-weight:800;
+letter-spacing:.04em;
+text-transform:uppercase;
+color:var(--gray);
+}
+
+.formField input,
+.formField select,
+.formField textarea{
+width:100%;
+padding:12px 14px;
+border-radius:14px;
+border:1px solid rgba(0,0,0,.10);
+background:rgba(255,255,255,.86);
+font:inherit;
+color:var(--gray-very-dark);
+outline:none;
+}
+
+.formField textarea{
+resize:vertical;
+min-height:110px;
+}
+
+.formField input:focus,
+.formField select:focus,
+.formField textarea:focus{
+border-color:rgba(47,128,237,.55);
+box-shadow:0 0 0 3px rgba(47,128,237,.16);
+}
+
+.formFieldWide{
+grid-column:1 / -1;
+}
+
+.recordsFormActions{
+display:flex;
+justify-content:flex-end;
+gap:12px;
+}
+
+@media (max-width: 980px){
+.recordsGrid{
+grid-template-columns:1fr;
+}
+}
+
+@media (max-width: 700px){
+.recordsIntro{
+flex-direction:column;
+}
+
+.recordsPills{
+grid-template-columns:1fr;
+}
+
+.formGrid{
+grid-template-columns:1fr;
+}
+
+.recordsHeroName{
+font-size:26px;
+}
+
+.recordsFormActions{
+justify-content:stretch;
+}
+
+.recordsFormActions .btn{
+flex:1;
+}
+}

@@ -1,83 +1,229 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Patient Dashboard</title>
-
-<!-- Link to external stylesheet -->
-<link rel="stylesheet" href="style.css">
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Medical Records</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" type="button" aria-label="Open menu">&#9776;</button>
 
-<header>
+    <div class="titleWrap">
+      <h1 class="pageTitle">Medical Records</h1>
+      <div class="pageSub">Live patient record data from TiDB</div>
+    </div>
 
-<div class="menu-icon">☰</div>
+    <div class="topRight">
+      <button class="logout-btn" type="button">Logout</button>
+      <div class="logoWrap" aria-label="Logo">
+        <img class="logoImg" src="images/logo.png" alt="Portal logo" />
+      </div>
+    </div>
+  </header>
 
-<div class="logo"></div>
+  <aside class="sideMenu" id="sideMenu" aria-label="Side menu">
+    <div class="sideMenuHeader">
+      <div class="sideMenuTitle">Menu</div>
+      <button class="closeBtn" id="closeMenuBtn" type="button" aria-label="Close menu">&#10005;</button>
+    </div>
 
-<button class="logout-btn">Logout</button>
+    <nav class="sideMenuLinks">
+      <a href="home.html">Personal Portal</a>
+      <a href="doctor.html">Doctor Availability</a>
+      <a href="calendar.html">Calendar</a>
+      <a class="active" href="records.html">Records</a>
+    </nav>
+  </aside>
 
-</header>
+  <div class="menuOverlay" id="menuOverlay" aria-hidden="true"></div>
 
+  <main class="page">
+    <section class="recordsShell">
+      <div class="recordsIntro panel">
+        <div>
+          <p class="recordsEyebrow">Patient record</p>
+          <h2 class="recordsHeroName" id="recordUserName">Loading...</h2>
+          <p class="recordsHeroMeta" id="recordUserMeta">Fetching your medical data from the database.</p>
+        </div>
 
-<h1>Your Appointments</h1>
+        <div class="recordsActions">
+          <button class="btn ghost" id="refreshRecordBtn" type="button">Refresh</button>
+        </div>
+      </div>
 
+      <div id="recordStatus" class="status" aria-live="polite"></div>
 
-<div class="dashboard-grid">
+      <section class="recordsGrid">
+        <article class="panel recordsCard">
+          <div class="recordsCardTitle">Personal Details</div>
+          <dl class="detailsList">
+            <div class="detailRow">
+              <dt>Full name</dt>
+              <dd id="field-name">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Email</dt>
+              <dd id="field-email">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Date of birth</dt>
+              <dd id="field-dob">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Gender</dt>
+              <dd id="field-gender">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Phone</dt>
+              <dd id="field-phone">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Address</dt>
+              <dd id="field-address">-</dd>
+            </div>
+          </dl>
+        </article>
 
-<div class="card">
+        <article class="panel recordsCard">
+          <div class="recordsCardTitle">Medical Summary</div>
+          <div class="recordsPills">
+            <div class="recordPill">
+              <span class="recordPillLabel">Blood type</span>
+              <strong id="field-blood-type">-</strong>
+            </div>
+            <div class="recordPill">
+              <span class="recordPillLabel">Allergies</span>
+              <strong id="field-allergies">-</strong>
+            </div>
+          </div>
+          <dl class="detailsList">
+            <div class="detailRow detailRowBlock">
+              <dt>Diagnosis</dt>
+              <dd id="field-diagnosis">-</dd>
+            </div>
+            <div class="detailRow detailRowBlock">
+              <dt>Medications</dt>
+              <dd id="field-medications">-</dd>
+            </div>
+          </dl>
+        </article>
 
-<button class="edit-btn">Edit</button>
+        <article class="panel recordsCard">
+          <div class="recordsCardTitle">Emergency Contact</div>
+          <dl class="detailsList">
+            <div class="detailRow">
+              <dt>Contact name</dt>
+              <dd id="field-emergency-name">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Contact phone</dt>
+              <dd id="field-emergency-phone">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Created</dt>
+              <dd id="field-created-at">-</dd>
+            </div>
+            <div class="detailRow">
+              <dt>Last updated</dt>
+              <dd id="field-updated-at">-</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
 
-<div class="doctor">Dr Smith</div>
-<div class="special">Cardiologist</div>
+      <section class="panel recordsFormPanel">
+        <div class="recordsFormHeader">
+          <div>
+            <div class="recordsCardTitle">Update Your Record</div>
+            <p class="recordsFormMeta" id="recordFormMeta">
+              Add your medical information if this is your first visit, or update it at any time.
+            </p>
+          </div>
+        </div>
 
-<div class="date">15 March 2026</div>
+        <form id="recordForm" class="recordForm">
+          <div class="formGrid">
+            <label class="formField">
+              <span>Date of birth</span>
+              <input id="input-dob" name="date_of_birth" type="date" required />
+            </label>
 
-<div class="status">Confirmed</div>
+            <label class="formField">
+              <span>Gender</span>
+              <select id="input-gender" name="gender">
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+              </select>
+            </label>
 
-<button class="cancel-btn">Cancel Appointment</button>
+            <label class="formField">
+              <span>Phone</span>
+              <input id="input-phone" name="phone" type="tel" placeholder="07111 222333" />
+            </label>
 
-</div>
+            <label class="formField formFieldWide">
+              <span>Address</span>
+              <input id="input-address" name="address" type="text" placeholder="14 Willow Street, Manchester" />
+            </label>
 
+            <label class="formField">
+              <span>Blood type</span>
+              <select id="input-blood-type" name="blood_type">
+                <option value="">Select blood type</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </label>
 
-<div class="card">
+            <label class="formField">
+              <span>Allergies</span>
+              <input id="input-allergies" name="allergies" type="text" placeholder="Penicillin" />
+            </label>
 
-<button class="edit-btn">Edit</button>
+            <label class="formField formFieldWide">
+              <span>Diagnosis</span>
+              <textarea id="input-diagnosis" name="diagnosis" rows="3" placeholder="Seasonal asthma"></textarea>
+            </label>
 
-<div class="doctor">Dr Patel</div>
+            <label class="formField formFieldWide">
+              <span>Medications</span>
+              <textarea id="input-medications" name="medications" rows="3" placeholder="Salbutamol inhaler"></textarea>
+            </label>
 
-<div class="special">Dermatologist</div>
+            <label class="formField">
+              <span>Emergency contact name</span>
+              <input id="input-emergency-name" name="emergency_contact_name" type="text" placeholder="James Carter" />
+            </label>
 
-<div>22 March 2026</div>
+            <label class="formField">
+              <span>Emergency contact phone</span>
+              <input id="input-emergency-phone" name="emergency_contact_phone" type="tel" placeholder="07900 111222" />
+            </label>
+          </div>
 
-<div class="status">Confirmed</div>
+          <div class="recordsFormActions">
+            <button class="btn ghost" id="resetRecordFormBtn" type="button">Reset</button>
+            <button class="btn primary" id="saveRecordBtn" type="submit">Save Record</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
 
-<button class="cancel-btn">Cancel Appointment</button>
+  <footer class="footer">Footer</footer>
 
-</div>
-
-
-<div class="card">
-
-<button class="edit-btn">Edit</button>
-
-<div class="doctor">Dr Brown</div>
-
-<div class="special">General Practitioner</div>
-
-<div>5 April 2026</div>
-
-<div class="status">Pending</div>
-
-<button class="cancel-btn">Cancel Appointment</button>
-
-</div>
-
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
