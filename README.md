@@ -34,11 +34,57 @@ Porject developers:
 - Database: MySQL
     
 - Version control: GitHub
+  
+- node_modules
+
+# Website
+
+Visit me at: https://hospify-pi.vercel.app/index.html
+
+# Features
+
+## Login/Register 
+- Trial accounts for user testing have been made with great templates to be used for navigating the website.
+- Registering account is made very simple and the information gets directly stored into both local and cloud database for local and online testing
+
+
+### Trial Accounts for data check:
+
+User: emma.carter@example.com
+Password: Password123!
+
+User: emma.carter@example.com
+Password: Password123!
+
+User: olivia.hughes@example.com
+Password: Password123!
+
+## Real-Time Doctor Availability
+
+- Allows the user to create an appointment which is based on the real time availability of the doctors.
+- Users cannot create an appointment at unvaliable times. 
+- User can select from different doctors focusing in different areas of expertise.
+- UI has been made to be simple for the bookings, everything is infront of the user no need for scrolling or anything like searching through.
+
+## Personal Records View
+
+- Every users has records where they would need to save their medical data that is asked.
+- Records can be updated in case of mistake.
+- Once update happens the previous information is substituted for the current update whitin the database. 
+
+# Potential Future Improvments
+
+- Password Reset
+- Admin portal
+- Doctor Portal
+- Cancelation of appointments
+- Appointment Reminder Notifications
+- Appointment History
 
 
 
-# Introduction
-# Sprint 1 - Allocation 
+
+
 
     
 
