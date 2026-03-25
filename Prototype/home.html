@@ -2,49 +2,109 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Personal Health Portal</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+  />
   <link rel="stylesheet" href="style.css" />
-    
 </head>
 <body>
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" type="button" aria-label="Open menu">&#9776;</button>
 
-  <header>
-    <div class="left">
-      <div class="menu-icon" onclick="toggleSidebar()">☰</div>
+    <div class="titleWrap">
+      <h1 class="pageTitle">Personal Portal</h1>
+      <div class="pageSub">Live doctor availability dashboard</div>
     </div>
 
-    <div class="center">
-      <div class="logo">H</div>
-    </div>
-
-    <div>
-      <button class="logout-btn">Logout</button>
+    <div class="topRight">
+      <button class="logout-btn" type="button">Logout</button>
+      <div class="logoWrap" aria-label="Logo">
+        <img class="logoImg" src="../images/logo.png" alt="logo" />
+      </div>
     </div>
   </header>
 
-  <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-header">Menu</div>
-    <a href="#" class="active">Personal Portal</a>
-    <a href="#">Doctor Availability</a>
-  </div>
-
-  <!-- Overlay for closing sidebar on mobile/desktop click outside -->
-  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-  <main>
-    <div class="dashboard-grid">
-      <div class="card calendar" id="goCalendar">Calendar</div>
-      <div class="card appointments" id="goAppointments">Appointments</div>
-      <div class="card records" id="goRecords">Records</div>
+  <aside class="sideMenu" id="sideMenu" aria-label="Side menu">
+    <div class="sideMenuHeader">
+      <div class="sideMenuTitle">Menu</div>
+      <button class="closeBtn" id="closeMenuBtn" type="button" aria-label="Close menu">&times;</button>
     </div>
+
+    <nav class="sideMenuLinks">
+      <a class="active" href="home.html">Personal Portal</a>
+      <a href="doctor.html">Doctor Availability</a>
+      <a href="calendar.html">Calendar</a>
+      <a href="records.html">Records</a>
+    </nav>
+  </aside>
+
+  <div class="menuOverlay" id="menuOverlay" aria-hidden="true"></div>
+
+  <main class="page">
+    <section class="panel bookingBoard">
+      <div class="bookingColumns">
+        <section class="bookingColumn doctorColumn">
+          <div class="bookingTitle">Select Doctor</div>
+          <div class="muted">Choose a doctor to see their live schedule.</div>
+          <select id="doctorSelect" class="doctorSelectInput">
+            <option value="">Choose a doctor</option>
+          </select>
+          <div id="doctorList" class="doctorButtonList" aria-live="polite"></div>
+        </section>
+
+        <section class="bookingColumn dateColumn">
+          <div class="bookingTitle">Select Date</div>
+          <div class="monthBar">
+            <button class="btn ghost" id="monthPrevBtn" type="button">Prev</button>
+            <div id="monthLabel" class="monthLabel">Month</div>
+            <button class="btn ghost" id="monthNextBtn" type="button">Next</button>
+          </div>
+          <div class="weekdayHeader">
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+            <span>Sun</span>
+          </div>
+          <div id="monthGrid" class="monthGrid" aria-live="polite"></div>
+          <div class="legend">
+            <div class="chip"><span class="dot ok"></span> Available</div>
+            <div class="chip"><span class="dot none"></span> Unavailable</div>
+          </div>
+        </section>
+
+        <section class="bookingColumn timeColumn">
+          <div class="bookingTitle">Select Time</div>
+          <div class="muted">Available 30-minute slots for the selected day.</div>
+          <div id="timeSlotGrid" class="timeSlotGrid" aria-live="polite"></div>
+        </section>
+      </div>
+
+      <div id="statusMsg" class="status" aria-live="polite"></div>
+
+      <div class="selectionSummary">
+        <div class="summaryItem">
+          <span class="summaryLabel">Doctor</span>
+          <strong id="selectedDoctorText">None selected</strong>
+        </div>
+        <div class="summaryItem">
+          <span class="summaryLabel">Date</span>
+          <strong id="selectedDateText">None selected</strong>
+        </div>
+        <div class="summaryItem">
+          <span class="summaryLabel">Time</span>
+          <strong id="selectedTimeText">None selected</strong>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <footer>
-    © 2026 Personal Health Portal • All rights reserved
-  </footer>
+  <footer class="footer">&copy; 2026 Personal Health Portal &bull; All rights reserved</footer>
 
   <script src="script.js"></script>
 </body>

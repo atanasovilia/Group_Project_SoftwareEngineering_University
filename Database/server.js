@@ -53,16 +53,144 @@ const PORT = Number(process.env.PORT || 3000);
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 const VALID_GENDERS = new Set(['male', 'female', 'other', 'prefer_not_to_say']);
 const VALID_BLOOD_TYPES = new Set(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function toMonday(dateInput) {
+  const base = dateInput ? new Date(`${dateInput}T00:00:00`) : new Date();
+  if (Number.isNaN(base.getTime())) {
+    return null;
+  }
+
+  const day = base.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(base);
+  monday.setDate(base.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function formatDateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function formatWeekdayDate(date) {
+  return {
+    iso_date: formatDateOnly(date),
+    label: WEEKDAY_LABELS[(date.getDay() + 6) % 7],
+    day_of_week: date.getDay() === 0 ? 7 : date.getDay(),
+  };
+}
+
+function parseDateInput(dateInput) {
+  if (!dateInput) {
+    return null;
+  }
+
+  const parsed = new Date(`${dateInput}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function formatMonthLabel(date) {
+  return date.toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function getCalendarStart(date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function getCalendarEnd(date) {
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const day = end.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  end.setDate(end.getDate() + diff);
+  end.setHours(0, 0, 0, 0);
+  return end;
+}
+
+function timeToMinutes(timeValue) {
+  const [hours, minutes] = String(timeValue).split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+function toDisplayTime(timeValue) {
+  const [hoursString, minutesString] = String(timeValue).split(':');
+  const hours = Number(hoursString);
+  const minutes = Number(minutesString);
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const twelveHour = hours % 12 || 12;
+  return `${twelveHour}:${String(minutes).padStart(2, '0')} ${suffix}`;
+}
+
+function buildTimeSlots(slotRanges) {
+  const slots = [];
+  for (const range of slotRanges) {
+    const startMinutes = timeToMinutes(range.start_time);
+    const endMinutes = timeToMinutes(range.end_time);
+
+    for (let current = startMinutes; current < endMinutes; current += 30) {
+      const slotEnd = Math.min(current + 30, endMinutes);
+      slots.push({
+        start_time: minutesToTime(current),
+        end_time: minutesToTime(slotEnd),
+        label: toDisplayTime(minutesToTime(current)),
+        available: true,
+      });
+    }
+  }
+
+  return slots;
+}
 
 app.get('/', (req, res) => {
   res.json({
     message: 'API is running',
     endpoints: {
+      health_db: 'GET /health/db',
+      doctors: 'GET /doctors',
+      calendar_month: 'GET /calendar/month?doctorId=1&month=YYYY-MM-01',
+      calendar_day: 'GET /calendar/day?doctorId=1&date=YYYY-MM-DD',
+      calendar_weekly: 'GET /calendar/weekly?weekStart=YYYY-MM-DD',
       users: 'GET /users',
       register: 'POST /register',
       login: 'POST /login',
     },
   });
+});
+
+app.get('/health/db', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT DATABASE() AS current_db, NOW() AS server_time');
+    res.json({
+      ok: true,
+      database: rows[0]?.current_db || null,
+      server_time: rows[0]?.server_time || null,
+    });
+  } catch (error) {
+    console.error('GET /health/db failed:', error.message);
+    res.status(500).json({
+      ok: false,
+      error: error.message || 'Database connection failed',
+    });
+  }
 });
 
 // GET /users
@@ -79,6 +207,258 @@ app.get('/users', async (req, res) => {
     console.error('GET /users failed:', error.message);
     // Return generic error to client.
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.get('/doctors', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, full_name, specialty, email, room_number, status
+       FROM doctors
+       WHERE status = 'active'
+       ORDER BY full_name ASC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('GET /doctors failed:', error.message);
+    res.status(500).json({ error: 'Failed to fetch doctors' });
+  }
+});
+
+app.get('/calendar/month', async (req, res) => {
+  try {
+    const doctorId = Number(req.query.doctorId);
+    if (!Number.isInteger(doctorId) || doctorId <= 0) {
+      return res.status(400).json({ error: 'doctorId must be a positive integer' });
+    }
+
+    const monthDate = parseDateInput(req.query.month) || new Date();
+    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+    const calendarStart = getCalendarStart(monthDate);
+    const calendarEnd = getCalendarEnd(monthDate);
+
+    const [doctorRows] = await pool.query(
+      `SELECT id, full_name, specialty, room_number
+       FROM doctors
+       WHERE id = ? AND status = 'active'
+       LIMIT 1`,
+      [doctorId]
+    );
+
+    if (doctorRows.length === 0) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    const [slotRows] = await pool.query(
+      `SELECT
+         day_of_week,
+         TIME_FORMAT(start_time, '%H:%i') AS start_time,
+         TIME_FORMAT(end_time, '%H:%i') AS end_time,
+         slot_capacity
+       FROM doctor_availability_slots
+       WHERE doctor_id = ?
+         AND is_active = TRUE
+       ORDER BY day_of_week, start_time`,
+      [doctorId]
+    );
+
+    const slotMap = new Map();
+    for (const row of slotRows) {
+      const existing = slotMap.get(row.day_of_week) || [];
+      existing.push(row);
+      slotMap.set(row.day_of_week, existing);
+    }
+
+    const days = [];
+    for (
+      let cursor = new Date(calendarStart);
+      cursor <= calendarEnd;
+      cursor.setDate(cursor.getDate() + 1)
+    ) {
+      const currentDate = new Date(cursor);
+      const dayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay();
+      const ranges = slotMap.get(dayOfWeek) || [];
+      const totalSlots = ranges.reduce((sum, range) => sum + range.slot_capacity, 0);
+
+      days.push({
+        iso_date: formatDateOnly(currentDate),
+        day_number: currentDate.getDate(),
+        day_of_week: dayOfWeek,
+        is_current_month: currentDate.getMonth() === monthDate.getMonth(),
+        total_slots: totalSlots,
+        status: totalSlots > 0 ? 'available' : 'none',
+      });
+    }
+
+    return res.json({
+      doctor: doctorRows[0],
+      month_start: formatDateOnly(monthStart),
+      month_end: formatDateOnly(monthEnd),
+      month_label: formatMonthLabel(monthDate),
+      days,
+    });
+  } catch (error) {
+    console.error('GET /calendar/month failed:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch monthly calendar' });
+  }
+});
+
+app.get('/calendar/day', async (req, res) => {
+  try {
+    const doctorId = Number(req.query.doctorId);
+    if (!Number.isInteger(doctorId) || doctorId <= 0) {
+      return res.status(400).json({ error: 'doctorId must be a positive integer' });
+    }
+
+    const selectedDate = parseDateInput(req.query.date);
+    if (!selectedDate) {
+      return res.status(400).json({ error: 'date must be a valid date in YYYY-MM-DD format' });
+    }
+
+    const [doctorRows] = await pool.query(
+      `SELECT id, full_name, specialty, room_number
+       FROM doctors
+       WHERE id = ? AND status = 'active'
+       LIMIT 1`,
+      [doctorId]
+    );
+
+    if (doctorRows.length === 0) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    const dayOfWeek = selectedDate.getDay() === 0 ? 7 : selectedDate.getDay();
+    const [slotRows] = await pool.query(
+      `SELECT
+         TIME_FORMAT(start_time, '%H:%i') AS start_time,
+         TIME_FORMAT(end_time, '%H:%i') AS end_time,
+         slot_capacity
+       FROM doctor_availability_slots
+       WHERE doctor_id = ?
+         AND day_of_week = ?
+         AND is_active = TRUE
+       ORDER BY start_time`,
+      [doctorId, dayOfWeek]
+    );
+
+    return res.json({
+      doctor: doctorRows[0],
+      date: formatDateOnly(selectedDate),
+      day_of_week: dayOfWeek,
+      ranges: slotRows,
+      slots: buildTimeSlots(slotRows),
+    });
+  } catch (error) {
+    console.error('GET /calendar/day failed:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch daily slots' });
+  }
+});
+
+app.get('/calendar/weekly', async (req, res) => {
+  try {
+    const weekStart = toMonday(req.query.weekStart);
+    if (!weekStart) {
+      return res.status(400).json({ error: 'weekStart must be a valid date in YYYY-MM-DD format' });
+    }
+
+    let selectedDoctorId = null;
+    if (req.query.doctorId != null && req.query.doctorId !== '') {
+      selectedDoctorId = Number(req.query.doctorId);
+      if (!Number.isInteger(selectedDoctorId) || selectedDoctorId <= 0) {
+        return res.status(400).json({ error: 'doctorId must be a positive integer' });
+      }
+    }
+
+    const weekDays = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + index);
+      return formatWeekdayDate(date);
+    });
+
+    const doctorParams = [];
+    let doctorWhereClause = `WHERE status = 'active'`;
+    if (selectedDoctorId) {
+      doctorWhereClause += ' AND id = ?';
+      doctorParams.push(selectedDoctorId);
+    }
+
+    const [doctorRows] = await pool.query(
+      `SELECT id, full_name, specialty, room_number
+       FROM doctors
+       ${doctorWhereClause}
+       ORDER BY full_name ASC`,
+      doctorParams
+    );
+
+    if (selectedDoctorId && doctorRows.length === 0) {
+      return res.status(404).json({ error: 'Doctor not found' });
+    }
+
+    const slotParams = [];
+    let slotDoctorFilter = '';
+    if (selectedDoctorId) {
+      slotDoctorFilter = ' AND s.doctor_id = ?';
+      slotParams.push(selectedDoctorId);
+    }
+
+    const [slotRows] = await pool.query(
+      `SELECT
+         s.doctor_id,
+         s.day_of_week,
+         TIME_FORMAT(s.start_time, '%H:%i') AS start_time,
+         TIME_FORMAT(s.end_time, '%H:%i') AS end_time,
+         s.slot_capacity
+       FROM doctor_availability_slots s
+       JOIN doctors d ON d.id = s.doctor_id
+       WHERE d.status = 'active'
+         AND s.is_active = TRUE
+         ${slotDoctorFilter}
+       ORDER BY s.doctor_id, s.day_of_week, s.start_time`
+      ,
+      slotParams
+    );
+
+    const slotsByDoctorDay = new Map();
+    for (const slot of slotRows) {
+      const key = `${slot.doctor_id}-${slot.day_of_week}`;
+      const existing = slotsByDoctorDay.get(key) || [];
+      existing.push({
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        slot_capacity: slot.slot_capacity,
+      });
+      slotsByDoctorDay.set(key, existing);
+    }
+
+    const doctors = doctorRows.map((doctor) => {
+      const availability = weekDays.map((day) => {
+        const slots = slotsByDoctorDay.get(`${doctor.id}-${day.day_of_week}`) || [];
+        const totalSlots = slots.reduce((sum, slot) => sum + slot.slot_capacity, 0);
+
+        return {
+          ...day,
+          total_slots: totalSlots,
+          slots,
+        };
+      });
+
+      return {
+        ...doctor,
+        availability,
+      };
+    });
+
+    return res.json({
+      week_start: formatDateOnly(weekStart),
+      week_end: weekDays[6].iso_date,
+      selected_doctor_id: selectedDoctorId,
+      days: weekDays,
+      doctors,
+    });
+  } catch (error) {
+    console.error('GET /calendar/weekly failed:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch weekly calendar' });
   }
 });
 

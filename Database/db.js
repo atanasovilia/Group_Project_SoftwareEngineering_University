@@ -3,10 +3,18 @@ const mysql = require('mysql2/promise');
 // Path is used to build an absolute path to the local .env file.
 const path = require('path');
 
-// Load environment variables from the project root if available.
+// Load environment variables from the project root first.
 require('dotenv').config();
-// Also load environment variables from Database/.env (useful for this folder-based setup).
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+// Only fall back to Database/.env if root config did not provide DB settings.
+if (
+  !process.env.DATABASE_URL &&
+  !process.env.DB_HOST &&
+  !process.env.DB_USER &&
+  !process.env.DB_PASSWORD &&
+  !process.env.DB_NAME
+) {
+  require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+}
 
 function getSslConfig() {
   const sslEnabled = String(process.env.DB_SSL || '').toLowerCase() === 'true';
