@@ -248,11 +248,11 @@ function setupNavigation() {
   });
 
   document.getElementById('goAppointments')?.addEventListener('click', () => {
-    window.location.href = 'doctor.html';
+    window.location.href = 'appointments.html';
   });
 
   document.getElementById('goCalendar')?.addEventListener('click', () => {
-    window.location.href = 'calendar.html';
+    window.location.href = 'doctor.html';
   });
 
   document.getElementById('goRecords')?.addEventListener('click', () => {
