@@ -50,13 +50,13 @@ Visit me at: https://hospify-pi.vercel.app/index.html
 
 ### Trial Accounts for data check:
 
-User: emma.carter@example.com
+email: emma.carter@example.com
 Password: Password123!
 
-User: emma.carter@example.com
+email: emma.carter@example.com
 Password: Password123!
 
-User: olivia.hughes@example.com
+email: olivia.hughes@example.com
 Password: Password123!
 
 ## Real-Time Doctor Availability
