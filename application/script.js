@@ -375,7 +375,18 @@ function setupMedicalRecordsPage() {
   const recordForm = document.getElementById('recordForm');
   const saveButton = document.getElementById('saveRecordBtn');
   const resetButton = document.getElementById('resetRecordFormBtn');
-  if (!refreshButton || !recordForm || !saveButton || !resetButton) {
+  const toggleFormButton = document.getElementById('toggleRecordFormBtn');
+  const cancelFormButton = document.getElementById('cancelRecordFormBtn');
+  const recordFormPanel = document.getElementById('recordFormPanel');
+  if (
+    !refreshButton ||
+    !recordForm ||
+    !saveButton ||
+    !resetButton ||
+    !toggleFormButton ||
+    !cancelFormButton ||
+    !recordFormPanel
+  ) {
     return;
   }
 
@@ -386,6 +397,31 @@ function setupMedicalRecordsPage() {
   }
 
   let currentRecord = null;
+  let isFormVisible = false;
+
+  function updateFormVisibility() {
+    recordFormPanel.classList.toggle('is-hidden', !isFormVisible);
+    recordFormPanel.setAttribute('aria-hidden', String(!isFormVisible));
+    toggleFormButton.textContent = isFormVisible
+      ? 'Hide Form'
+      : currentRecord
+        ? 'Update Record'
+        : 'Create Record';
+  }
+
+  function showRecordForm() {
+    isFormVisible = true;
+    updateFormVisibility();
+    const firstInput = currentRecord
+      ? document.getElementById('input-phone')
+      : document.getElementById('input-dob');
+    firstInput?.focus();
+  }
+
+  function hideRecordForm() {
+    isFormVisible = false;
+    updateFormVisibility();
+  }
 
   async function loadMedicalRecord() {
     showStatus('recordStatus', 'Loading medical record...', null);
@@ -416,6 +452,7 @@ function setupMedicalRecordsPage() {
           'recordFormMeta',
           'No record was found for this account. Complete the form below to create your first medical record.'
         );
+        hideRecordForm();
         return;
       }
 
@@ -431,6 +468,7 @@ function setupMedicalRecordsPage() {
         'Your existing medical record is loaded below. Edit any field and save to update the database.'
       );
       showStatus('recordStatus', 'Medical record loaded from TiDB.', 'ok');
+      hideRecordForm();
     } catch (error) {
       currentRecord = null;
       clearMedicalRecord();
@@ -444,6 +482,7 @@ function setupMedicalRecordsPage() {
         'recordFormMeta',
         'The current record could not be loaded. You can still try entering your information and saving it.'
       );
+      hideRecordForm();
     } finally {
       refreshButton.disabled = false;
       saveButton.disabled = false;
@@ -487,6 +526,7 @@ function setupMedicalRecordsPage() {
         'Your record is saved. You can come back and update these details at any time.'
       );
       showStatus('recordStatus', data.message || 'Medical record saved successfully.', 'ok');
+      hideRecordForm();
     } catch (error) {
       showStatus(
         'recordStatus',
@@ -509,9 +549,25 @@ function setupMedicalRecordsPage() {
     }
   }
 
+  function toggleMedicalRecordForm() {
+    if (isFormVisible) {
+      resetMedicalRecordForm();
+      hideRecordForm();
+      return;
+    }
+
+    showRecordForm();
+  }
+
   refreshButton.addEventListener('click', loadMedicalRecord);
   recordForm.addEventListener('submit', saveMedicalRecord);
   resetButton.addEventListener('click', resetMedicalRecordForm);
+  cancelFormButton.addEventListener('click', () => {
+    resetMedicalRecordForm();
+    hideRecordForm();
+  });
+  toggleFormButton.addEventListener('click', toggleMedicalRecordForm);
+  updateFormVisibility();
   loadMedicalRecord();
 }
 
