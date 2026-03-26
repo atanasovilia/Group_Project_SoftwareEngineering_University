@@ -921,9 +921,14 @@ app.post('/appointments', async (req, res) => {
   try {
     const { user_id, doctor_id, appointment_date, appointment_time } = req.body;
 
-    // Validation
+    // Validation: Check for required fields
     if (!user_id || !doctor_id || !appointment_date || !appointment_time) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      const missing = [];
+      if (!user_id) missing.push('user_id');
+      if (!doctor_id) missing.push('doctor_id');
+      if (!appointment_date) missing.push('appointment_date');
+      if (!appointment_time) missing.push('appointment_time');
+      return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
     }
 
     const userId = Number(user_id);
@@ -939,46 +944,63 @@ app.post('/appointments', async (req, res) => {
 
     // Validate date format YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(appointment_date))) {
-      return res.status(400).json({ error: 'appointment_date must be YYYY-MM-DD' });
+      return res.status(400).json({ error: 'appointment_date must be YYYY-MM-DD format' });
     }
 
     // Validate time format HH:MM
     if (!/^\d{2}:\d{2}$/.test(String(appointment_time))) {
-      return res.status(400).json({ error: 'appointment_time must be HH:MM' });
+      return res.status(400).json({ error: 'appointment_time must be HH:MM format' });
+    }
+
+    // Check if date is valid
+    const dateObj = new Date(`${appointment_date}T${appointment_time}:00`);
+    if (Number.isNaN(dateObj.getTime())) {
+      return res.status(400).json({ error: 'Invalid appointment date or time' });
+    }
+
+    // Check if appointment is in the future
+    if (dateObj < new Date()) {
+      return res.status(400).json({ error: 'Cannot book appointments in the past' });
     }
 
     // Check if user exists
     const [userRows] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
     if (userRows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: `User with ID ${userId} not found` });
     }
 
     // Check if doctor exists and is active
     const [doctorRows] = await pool.query(
-      'SELECT id FROM doctors WHERE id = ? AND status = "active" LIMIT 1',
+      'SELECT id, full_name FROM doctors WHERE id = ? AND status = "active" LIMIT 1',
       [doctorId]
     );
     if (doctorRows.length === 0) {
-      return res.status(404).json({ error: 'Doctor not found or is inactive' });
+      return res.status(404).json({ error: `Doctor with ID ${doctorId} not found or is inactive` });
     }
 
-    // Check if appointment already booked
+    // Check if appointment slot already booked (confirmed or not cancelled)
     const [existingAppointment] = await pool.query(
-      `SELECT id FROM appointments
+      `SELECT id, status FROM appointments
        WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? AND status = 'confirmed'
        LIMIT 1`,
       [doctorId, appointment_date, appointment_time]
     );
     if (existingAppointment.length > 0) {
-      return res.status(409).json({ error: 'This appointment slot is already booked' });
+      return res.status(409).json({ 
+        error: 'This appointment slot is no longer available. Please select another time.' 
+      });
     }
 
-    // Create appointment
+    // Create appointment with explicit status
     const [result] = await pool.query(
       `INSERT INTO appointments (user_id, doctor_id, appointment_date, appointment_time, status)
        VALUES (?, ?, ?, ?, 'confirmed')`,
       [userId, doctorId, appointment_date, appointment_time]
     );
+
+    if (!result || !result.insertId) {
+      throw new Error('Failed to retrieve appointment ID after insertion');
+    }
 
     return res.status(201).json({
       id: result.insertId,
@@ -988,10 +1010,124 @@ app.post('/appointments', async (req, res) => {
       appointment_time,
       status: 'confirmed',
       created_at: new Date().toISOString(),
+      message: 'Appointment successfully booked',
     });
   } catch (error) {
-    console.error('POST /appointments failed:', error.message);
-    return res.status(500).json({ error: 'Failed to create appointment' });
+    // Log detailed error for debugging
+    console.error('POST /appointments failed with error:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+    });
+
+    // Return appropriate error based on error type
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: 'This appointment slot is already booked' });
+    }
+
+    if (error.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(404).json({ error: 'User or doctor not found' });
+    }
+
+    return res.status(500).json({ 
+      error: 'Failed to create appointment. Please try again later.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// GET /user/:userId/appointments
+// Fetch all appointments for a user (confirmed + cancelled)
+app.get('/user/:userId/appointments', async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'userId must be a positive integer' });
+    }
+
+    const [appointments] = await pool.query(
+      `SELECT
+         a.id,
+         a.user_id,
+         a.doctor_id,
+         a.appointment_date,
+         a.appointment_time,
+         a.status,
+         a.created_at,
+         d.full_name AS doctor_name,
+         d.specialty AS doctor_specialty,
+         d.room_number
+       FROM appointments a
+       JOIN doctors d ON d.id = a.doctor_id
+       WHERE a.user_id = ?
+       ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
+      [userId]
+    );
+
+    return res.json({
+      user_id: userId,
+      appointments: appointments,
+    });
+  } catch (error) {
+    console.error('GET /user/:userId/appointments failed:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+});
+
+// PATCH /appointments/:appointmentId/cancel
+// Cancel an appointment and free up the slot
+app.patch('/appointments/:appointmentId/cancel', async (req, res) => {
+  try {
+    const appointmentId = Number(req.params.appointmentId);
+    if (!Number.isInteger(appointmentId) || appointmentId <= 0) {
+      return res.status(400).json({ error: 'appointmentId must be a positive integer' });
+    }
+
+    // Fetch appointment to verify it exists and get details
+    const [appointmentRows] = await pool.query(
+      `SELECT id, user_id, doctor_id, appointment_date, appointment_time, status
+       FROM appointments
+       WHERE id = ?
+       LIMIT 1`,
+      [appointmentId]
+    );
+
+    if (appointmentRows.length === 0) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    const appointment = appointmentRows[0];
+
+    // Prevent cancelling already cancelled appointments
+    if (appointment.status === 'cancelled') {
+      return res.status(400).json({ error: 'Appointment is already cancelled' });
+    }
+
+    // Update appointment status to cancelled
+    const [updateResult] = await pool.query(
+      `UPDATE appointments
+       SET status = 'cancelled'
+       WHERE id = ?`,
+      [appointmentId]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(500).json({ error: 'Failed to cancel appointment' });
+    }
+
+    // Return updated appointment
+    return res.json({
+      id: appointment.id,
+      user_id: appointment.user_id,
+      doctor_id: appointment.doctor_id,
+      appointment_date: appointment.appointment_date,
+      appointment_time: appointment.appointment_time,
+      status: 'cancelled',
+    });
+  } catch (error) {
+    console.error('PATCH /appointments/:appointmentId/cancel failed:', error.message);
+    return res.status(500).json({ error: 'Failed to cancel appointment' });
   }
 });
 

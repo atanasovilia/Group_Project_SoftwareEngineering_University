@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Appointments</title>
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button class="hamburger" id="hamburger" type="button" aria-label="Open menu">&#9776;</button>
+
+    <div class="titleWrap">
+      <h1 class="pageTitle">My Appointments</h1>
+      <div class="pageSub">View and manage your scheduled appointments</div>
+    </div>
+
+    <div class="topRight">
+      <button class="logout-btn" type="button">Logout</button>
+      <div class="logoWrap" aria-label="Logo">
+        <img class="logoImg" src="images/logo.png" alt="logo" />
+      </div>
+    </div>
+  </header>
+
+  <aside class="sideMenu" id="sideMenu" aria-label="Side menu">
+    <div class="sideMenuHeader">
+      <div class="sideMenuTitle">Menu</div>
+      <button class="closeBtn" id="closeMenuBtn" type="button" aria-label="Close menu">&times;</button>
+    </div>
+
+    <nav class="sideMenuLinks">
+      <a href="home.html">Personal Portal</a>
+      <a href="doctor.html">Doctor Availability</a>
+      <a href="records.html">Records</a>
+      <a class="active" href="appointments.html">My Appointments</a>
+    </nav>
+  </aside>
+
+  <div class="menuOverlay" id="menuOverlay" aria-hidden="true"></div>
+
+  <main class="page appointmentsPage">
+    <section class="panel appointmentsPanel">
+      <div id="statusMsg" class="status" aria-live="polite"></div>
+
+      <!-- Filters -->
+      <div class="appointmentsFilters">
+        <button class="btn ghost filterBtn active" data-filter="all">All</button>
+        <button class="btn ghost filterBtn" data-filter="confirmed">Confirmed</button>
+        <button class="btn ghost filterBtn" data-filter="cancelled">Cancelled</button>
+      </div>
+
+      <!-- Appointments List -->
+      <div id="appointmentsList" class="appointmentsList" aria-live="polite">
+        <div class="emptyState">Loading your appointments...</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    const appointmentPageInit = async () => {
+      const statusMsg = document.getElementById('statusMsg');
+      const appointmentsList = document.getElementById('appointmentsList');
+
+      const authUser = getAuthUser();
+      if (!authUser) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Load appointments
+      try {
+        const response = await fetch(`${API_BASE_URL}/user/${authUser.id}/appointments`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          renderStatusMessage(statusMsg, data.error || 'Could not load appointments', 'err');
+          return;
+        }
+
+        if (!data.appointments || data.appointments.length === 0) {
+          appointmentsList.innerHTML = '<div class="emptyState">No appointments scheduled yet.</div>';
+          renderStatusMessage(statusMsg, '');
+          return;
+        }
+
+        renderAppointments(data.appointments);
+        renderStatusMessage(statusMsg, '');
+      } catch (error) {
+        renderStatusMessage(statusMsg, 'Could not connect to the server.', 'err');
+      }
+    };
+
+    function formatDateDisplay(dateStr) {
+      const date = new Date(dateStr);
+      return new Intl.DateTimeFormat('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+    }
+
+    function renderAppointments(appointments) {
+      const appointmentsList = document.getElementById('appointmentsList');
+      appointmentsList.innerHTML = '';
+
+      appointments.forEach((apt) => {
+        const appointmentCard = document.createElement('div');
+        appointmentCard.className = `appointmentCard ${apt.status}`;
+        appointmentCard.id = `apt-${apt.id}`;
+
+        const dateDisplay = formatDateDisplay(apt.appointment_date);
+        const timeDisplay = apt.appointment_time;
+        const doctorName = apt.doctor_name || 'Unknown Doctor';
+        const specialty = apt.doctor_specialty || '';
+        const room = apt.room_number || '';
+
+        const statusBadge = apt.status === 'confirmed' ? '✓ Confirmed' : '✗ Cancelled';
+        const statusClass = apt.status === 'confirmed' ? 'confirmed' : 'cancelled';
+
+        appointmentCard.innerHTML = `
+          <div class="appointmentCardHeader">
+            <div class="appointmentCardTitle">
+              <h3>${doctorName}</h3>
+              <p class="specialty">${specialty}</p>
+            </div>
+            <span class="appointmentStatus ${statusClass}">${statusBadge}</span>
+          </div>
+
+          <div class="appointmentCardDetails">
+            <div class="detailItem">
+              <span class="label">Date</span>
+              <span class="value">${dateDisplay}</span>
+            </div>
+            <div class="detailItem">
+              <span class="label">Time</span>
+              <span class="value">${timeDisplay}</span>
+            </div>
+            <div class="detailItem">
+              <span class="label">Location</span>
+              <span class="value">${room}</span>
+            </div>
+          </div>
+
+          <div class="appointmentCardActions">
+            ${apt.status === 'confirmed' 
+              ? `<button class="btn danger cancelBtn" data-apt-id="${apt.id}">Cancel Appointment</button>`
+              : '<span class="mutedText">This appointment has been cancelled</span>'
+            }
+          </div>
+        `;
+
+        appointmentsList.appendChild(appointmentCard);
+      });
+
+      // Attach cancel event listeners
+      document.querySelectorAll('.cancelBtn').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          const aptId = e.target.getAttribute('data-apt-id');
+          const statusMsg = document.getElementById('statusMsg');
+          const confirmCancel = confirm('Are you sure you want to cancel this appointment? This will free up the time slot for other users.');
+
+          if (!confirmCancel) return;
+
+          try {
+            const response = await fetch(`${API_BASE_URL}/appointments/${aptId}/cancel`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+              renderStatusMessage(statusMsg, data.error || 'Could not cancel appointment', 'err');
+              return;
+            }
+
+            renderStatusMessage(statusMsg, '✓ Appointment cancelled successfully', 'ok');
+
+            // Reload appointments after delay
+            setTimeout(() => {
+              appointmentPageInit();
+            }, 1500);
+          } catch (error) {
+            renderStatusMessage(statusMsg, 'Could not connect to the server.', 'err');
+          }
+        });
+      });
+
+      // Filter appointments
+      applyFilter('all');
+    }
+
+    function applyFilter(filter) {
+      const cards = document.querySelectorAll('.appointmentCard');
+      cards.forEach((card) => {
+        if (filter === 'all') {
+          card.style.display = '';
+        } else if (filter === 'confirmed') {
+          card.style.display = card.classList.contains('confirmed') ? '' : 'none';
+        } else if (filter === 'cancelled') {
+          card.style.display = card.classList.contains('cancelled') ? '' : 'none';
+        }
+      });
+    }
+
+    // Filter button event listeners
+    document.querySelectorAll('.filterBtn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filterBtn').forEach((b) => b.classList.remove('active'));
+        e.target.classList.add('active');
+        const filter = e.target.getAttribute('data-filter');
+        applyFilter(filter);
+      });
+    });
+
+    // Initialize page
+    appointmentPageInit();
+  </script>
+</body>
+</html>

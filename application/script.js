@@ -571,7 +571,7 @@ function setupMedicalRecordsPage() {
   loadMedicalRecord();
 }
 
-function setupHomeBookingDashboard() {
+function setupDoctorBookingDashboard() {
 	const doctorSelect = document.getElementById('doctorSelect');
 	const doctorList = document.getElementById('doctorList');
 	const monthGrid = document.getElementById('monthGrid');
@@ -589,6 +589,7 @@ function setupHomeBookingDashboard() {
 	const closeMenuBtn = document.getElementById('closeMenuBtn');
 	const menuOverlay = document.getElementById('menuOverlay');
 
+	// Exit if elements aren't found (page not doctor.html)
 	if (
 		!doctorSelect ||
 		!doctorList ||
@@ -663,26 +664,38 @@ function setupHomeBookingDashboard() {
 		renderStatusMessage(statusMsg, 'Booking appointment...');
 
 		try {
+			const payload = {
+				user_id: Number(authUser.id),
+				doctor_id: Number(state.selectedDoctorId),
+				appointment_date: state.selectedDate,
+				appointment_time: state.selectedSlot.start_time,
+			};
+
+			console.log('Submitting booking:', payload);
+
 			const response = await fetch(`${API_BASE_URL}/appointments`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({
-					user_id: authUser.id,
-					doctor_id: state.selectedDoctorId,
-					appointment_date: state.selectedDate,
-					appointment_time: state.selectedSlot.start_time,
-				}),
+				body: JSON.stringify(payload),
 			});
 
-			const data = await response.json();
-
 			if (!response.ok) {
-				renderStatusMessage(statusMsg, data.error || 'Could not book appointment.', 'err');
+				let errorMessage = 'Could not book appointment.';
+				try {
+					const data = await response.json();
+					errorMessage = data.error || data.message || errorMessage;
+				} catch (parseError) {
+					console.error('Failed to parse error response:', parseError);
+				}
+				renderStatusMessage(statusMsg, errorMessage, 'err');
 				updateBookButtonState();
 				return;
 			}
+
+			const data = await response.json();
+			console.log('Booking successful:', data);
 
 			// Show success confirmation
 			renderStatusMessage(
@@ -704,7 +717,8 @@ function setupHomeBookingDashboard() {
 				renderStatusMessage(statusMsg, '');
 			}, 2000);
 		} catch (error) {
-			renderStatusMessage(statusMsg, 'Could not connect to the booking service.', 'err');
+			console.error('Booking submission error:', error);
+			renderStatusMessage(statusMsg, 'Network error: Could not connect to the booking service.', 'err');
 			updateBookButtonState();
 		}
 	}
@@ -800,9 +814,8 @@ function setupHomeBookingDashboard() {
 		slots.forEach((slot) => {
 			const button = document.createElement('button');
 			button.type = 'button';
-			button.className = `timeSlotButton${
-				slot === state.selectedSlot ? ' selected' : ''
-			}`;
+			const isSelected = state.selectedSlot && state.selectedSlot.start_time === slot.start_time;
+			button.className = `timeSlotButton${isSelected ? ' selected' : ''}`;
 			button.textContent = slot.label;
 			button.addEventListener('click', () => {
 				state.selectedSlot = slot;
@@ -1079,5 +1092,5 @@ function setupCalendarPage() {
 setupAuthPage();
 setupNavigation();
 setupMedicalRecordsPage();
-setupHomeBookingDashboard();
+setupDoctorBookingDashboard();
 setupCalendarPage();
