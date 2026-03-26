@@ -45,7 +45,7 @@ app.use((req, res, next) => {
   return next();
 });
 
-app.use(express.static(path.join(__dirname, '../Prototype')));
+app.use(express.static(path.join(__dirname, '../application')));
 
 // API listening port (defaults to 3000 for local development).
 const PORT = Number(process.env.PORT || 3000);
@@ -54,6 +54,10 @@ const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 const VALID_GENDERS = new Set(['male', 'female', 'other', 'prefer_not_to_say']);
 const VALID_BLOOD_TYPES = new Set(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const NAME_PATTERN = /^[A-Za-z][A-Za-z' -]{1,118}[A-Za-z]$/;
+const PHONE_PATTERN = /^\+?[0-9() -]{7,25}$/;
+const ADDRESS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s,.'#\/-]{4,254}$/;
+const MEDICAL_TEXT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s,.'()\/+-]{1,998}[A-Za-z0-9.)]$/;
 
 function toMonday(dateInput) {
   const base = dateInput ? new Date(`${dateInput}T00:00:00`) : new Date();
@@ -93,6 +97,52 @@ function parseDateInput(dateInput) {
 
   parsed.setHours(0, 0, 0, 0);
   return parsed;
+}
+
+function isValidIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    return false;
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  return parsed.toISOString().slice(0, 10) === value;
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeOptionalString(value) {
+  if (value == null) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function validatePatternField(value, pattern, fieldName, errorMessage) {
+  if (value == null) {
+    return null;
+  }
+
+  if (!isNonEmptyString(value)) {
+    return `${fieldName} must be a non-empty string`;
+  }
+
+  if (!pattern.test(value)) {
+    return errorMessage;
+  }
+
+  return null;
 }
 
 function formatMonthLabel(date) {
@@ -705,22 +755,96 @@ app.put('/medical-records/:userId', async (req, res) => {
         .json({ error: `Provide at least one field: ${allowedFields.join(', ')}` });
     }
 
-    if (Object.hasOwn(input, 'gender') && input.gender != null && !VALID_GENDERS.has(input.gender)) {
+    const normalizedInput = { ...input };
+    for (const field of providedFields) {
+      normalizedInput[field] = normalizeOptionalString(input[field]);
+    }
+
+    if (
+      Object.hasOwn(normalizedInput, 'gender') &&
+      normalizedInput.gender != null &&
+      !VALID_GENDERS.has(normalizedInput.gender)
+    ) {
       return res.status(400).json({ error: 'Invalid gender value' });
     }
 
     if (
-      Object.hasOwn(input, 'blood_type') &&
-      input.blood_type != null &&
-      !VALID_BLOOD_TYPES.has(input.blood_type)
+      Object.hasOwn(normalizedInput, 'blood_type') &&
+      normalizedInput.blood_type != null &&
+      !VALID_BLOOD_TYPES.has(normalizedInput.blood_type)
     ) {
       return res.status(400).json({ error: 'Invalid blood_type value' });
     }
 
-    if (Object.hasOwn(input, 'date_of_birth') && input.date_of_birth != null) {
-      const dob = String(input.date_of_birth);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
-        return res.status(400).json({ error: 'date_of_birth must be YYYY-MM-DD' });
+    if (Object.hasOwn(normalizedInput, 'date_of_birth')) {
+      const dob = normalizedInput.date_of_birth;
+      if (dob == null) {
+        return res.status(400).json({ error: 'date_of_birth cannot be empty' });
+      }
+
+      if (!isValidIsoDate(dob)) {
+        return res.status(400).json({
+          error: 'date_of_birth must be a real date in YYYY-MM-DD format',
+        });
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const parsedDob = new Date(`${dob}T00:00:00`);
+      if (parsedDob > today) {
+        return res.status(400).json({ error: 'date_of_birth cannot be in the future' });
+      }
+    }
+
+    const phoneError = validatePatternField(
+      normalizedInput.phone,
+      PHONE_PATTERN,
+      'phone',
+      'phone can only contain numbers, spaces, parentheses, hyphens, and an optional leading +'
+    );
+    if (phoneError) {
+      return res.status(400).json({ error: phoneError });
+    }
+
+    const emergencyPhoneError = validatePatternField(
+      normalizedInput.emergency_contact_phone,
+      PHONE_PATTERN,
+      'emergency_contact_phone',
+      'emergency_contact_phone can only contain numbers, spaces, parentheses, hyphens, and an optional leading +'
+    );
+    if (emergencyPhoneError) {
+      return res.status(400).json({ error: emergencyPhoneError });
+    }
+
+    const emergencyNameError = validatePatternField(
+      normalizedInput.emergency_contact_name,
+      NAME_PATTERN,
+      'emergency_contact_name',
+      'emergency_contact_name must contain letters only, with spaces, hyphens, or apostrophes allowed'
+    );
+    if (emergencyNameError) {
+      return res.status(400).json({ error: emergencyNameError });
+    }
+
+    const addressError = validatePatternField(
+      normalizedInput.address,
+      ADDRESS_PATTERN,
+      'address',
+      'address contains invalid characters'
+    );
+    if (addressError) {
+      return res.status(400).json({ error: addressError });
+    }
+
+    for (const field of ['allergies', 'diagnosis', 'medications']) {
+      const fieldError = validatePatternField(
+        normalizedInput[field],
+        MEDICAL_TEXT_PATTERN,
+        field,
+        `${field} contains invalid characters`
+      );
+      if (fieldError) {
+        return res.status(400).json({ error: fieldError });
       }
     }
 
@@ -738,7 +862,7 @@ app.put('/medical-records/:userId', async (req, res) => {
 
     if (recordExists) {
       const setClause = providedFields.map((field) => `${field} = ?`).join(', ');
-      const values = providedFields.map((field) => input[field]);
+      const values = providedFields.map((field) => normalizedInput[field]);
 
       await pool.query(
         `UPDATE medical_records
@@ -749,7 +873,7 @@ app.put('/medical-records/:userId', async (req, res) => {
     } else {
       const insertFields = ['user_id', ...providedFields];
       const placeholders = insertFields.map(() => '?').join(', ');
-      const values = [userId, ...providedFields.map((field) => input[field])];
+      const values = [userId, ...providedFields.map((field) => normalizedInput[field])];
 
       await pool.query(
         `INSERT INTO medical_records (${insertFields.join(', ')})

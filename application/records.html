@@ -50,6 +50,7 @@
         </div>
 
         <div class="recordsActions">
+          <button class="btn primary" id="toggleRecordFormBtn" type="button">Update Record</button>
           <button class="btn ghost" id="refreshRecordBtn" type="button">Refresh</button>
         </div>
       </div>
@@ -134,7 +135,7 @@
         </article>
       </section>
 
-      <section class="panel recordsFormPanel">
+      <section class="panel recordsFormPanel is-hidden" id="recordFormPanel" aria-hidden="true">
         <div class="recordsFormHeader">
           <div>
             <div class="recordsCardTitle">Update Your Record</div>
@@ -214,6 +215,7 @@
           </div>
 
           <div class="recordsFormActions">
+            <button class="btn ghost" id="cancelRecordFormBtn" type="button">Cancel</button>
             <button class="btn ghost" id="resetRecordFormBtn" type="button">Reset</button>
             <button class="btn primary" id="saveRecordBtn" type="submit">Save Record</button>
           </div>

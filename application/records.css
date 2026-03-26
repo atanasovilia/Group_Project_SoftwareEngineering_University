@@ -524,6 +524,10 @@ body::after{
   gap:18px;
 }
 
+.recordsFormPanel.is-hidden{
+  display:none;
+}
+
 .recordsFormHeader{
   display:flex;
   align-items:flex-start;
