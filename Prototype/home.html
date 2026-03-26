@@ -16,7 +16,7 @@
 
     <div class="titleWrap">
       <h1 class="pageTitle">Personal Portal</h1>
-      <div class="pageSub">Live doctor availability dashboard</div>
+      <div class="pageSub">Your health information center</div>
     </div>
 
     <div class="topRight">
@@ -36,74 +36,18 @@
     <nav class="sideMenuLinks">
       <a class="active" href="home.html">Personal Portal</a>
       <a href="doctor.html">Doctor Availability</a>
-      <a href="calendar.html">Calendar</a>
       <a href="records.html">Records</a>
+      <a href="appointments.html">My Appointments</a>
     </nav>
   </aside>
 
   <div class="menuOverlay" id="menuOverlay" aria-hidden="true"></div>
 
   <main class="page">
-    <section class="panel bookingBoard">
-      <div class="bookingColumns">
-        <section class="bookingColumn doctorColumn">
-          <div class="bookingTitle">Select Doctor</div>
-          <div class="muted">Choose a doctor to see their live schedule.</div>
-          <select id="doctorSelect" class="doctorSelectInput">
-            <option value="">Choose a doctor</option>
-          </select>
-          <div id="doctorList" class="doctorButtonList" aria-live="polite"></div>
-        </section>
-
-        <section class="bookingColumn dateColumn">
-          <div class="bookingTitle">Select Date</div>
-          <div class="monthBar">
-            <button class="btn ghost" id="monthPrevBtn" type="button">Prev</button>
-            <div id="monthLabel" class="monthLabel">Month</div>
-            <button class="btn ghost" id="monthNextBtn" type="button">Next</button>
-          </div>
-          <div class="weekdayHeader">
-            <span>Mon</span>
-            <span>Tue</span>
-            <span>Wed</span>
-            <span>Thu</span>
-            <span>Fri</span>
-            <span>Sat</span>
-            <span>Sun</span>
-          </div>
-          <div id="monthGrid" class="monthGrid" aria-live="polite"></div>
-          <div class="legend">
-            <div class="chip"><span class="dot ok"></span> Available</div>
-            <div class="chip"><span class="dot none"></span> Unavailable</div>
-          </div>
-        </section>
-
-        <section class="bookingColumn timeColumn">
-          <div class="bookingTitle">Select Time</div>
-          <div class="muted">Available 30-minute slots for the selected day.</div>
-          <div id="timeSlotGrid" class="timeSlotGrid" aria-live="polite"></div>
-        </section>
-      </div>
-
-      <div id="statusMsg" class="status" aria-live="polite"></div>
-
-      <div class="selectionSummary">
-        <div class="summaryItem">
-          <span class="summaryLabel">Doctor</span>
-          <strong id="selectedDoctorText">None selected</strong>
-        </div>
-        <div class="summaryItem">
-          <span class="summaryLabel">Date</span>
-          <strong id="selectedDateText">None selected</strong>
-        </div>
-        <div class="summaryItem">
-          <span class="summaryLabel">Time</span>
-          <strong id="selectedTimeText">None selected</strong>
-        </div>
-      </div>
-
-      <div class="bookingActions">
-        <button class="btn primary" id="bookAppointmentBtn" type="button" disabled>Book Appointment</button>
+    <section class="panel">
+      <div class="panelContent">
+        <h2>Welcome to Personal Portal</h2>
+        <p>Use the menu to navigate to different sections of the application.</p>
       </div>
     </section>
   </main>
