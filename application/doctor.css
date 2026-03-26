@@ -760,3 +760,342 @@ input[type="date"]:focus{
     width:100%;
   }
 }
+
+/* doctor booking dashboard */
+.bookingBoard{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.bookingColumns{
+  display:grid;
+  grid-template-columns:minmax(220px, 0.95fr) minmax(360px, 1.3fr) minmax(260px, 1fr);
+  gap:20px;
+  align-items:start;
+}
+
+.bookingColumn{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:20px;
+  padding:18px;
+  min-height:520px;
+}
+
+.bookingTitle{
+  font-size:18px;
+  font-weight:900;
+  margin-bottom:8px;
+  color:var(--white);
+}
+
+.muted{
+  color:var(--grey-700);
+}
+
+.doctorSelectInput{
+  width:100%;
+  margin:14px 0 16px;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.10);
+  color:var(--white);
+  font-size:14px;
+}
+
+.doctorSelectInput option{
+  color:#142033;
+}
+
+.doctorButtonList{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.doctorSelectCard{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  width:100%;
+  text-align:left;
+  padding:14px 16px;
+  border:none;
+  border-radius:16px;
+  background:rgba(255,255,255,.10);
+  color:var(--white);
+  cursor:pointer;
+  transition:transform .12s ease, border-color .12s ease, background .12s ease, box-shadow .12s ease;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10);
+}
+
+.doctorSelectCard:hover{
+  transform:translateY(-1px);
+  background:rgba(255,255,255,.14);
+  box-shadow:inset 0 0 0 1px rgba(127,193,255,.30), 0 12px 26px rgba(0,0,0,.16);
+}
+
+.doctorSelectCard.selected{
+  background:linear-gradient(135deg, rgba(47,128,237,.55), rgba(39,174,96,.18));
+  box-shadow:inset 0 0 0 1px rgba(127,193,255,.42), 0 14px 28px rgba(47,128,237,.18);
+}
+
+.doctorSelectName{
+  font-weight:900;
+  font-size:16px;
+}
+
+.doctorSelectMeta{
+  font-size:13px;
+  color:var(--grey-700);
+}
+
+.doctorSelectCard.selected .doctorSelectMeta{
+  color:rgba(255,255,255,.82);
+}
+
+.monthBar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:14px 0 18px;
+}
+
+.monthLabel{
+  font-size:22px;
+  font-weight:900;
+  color:var(--white);
+}
+
+.weekdayHeader{
+  display:grid;
+  grid-template-columns:repeat(7, minmax(0, 1fr));
+  gap:10px;
+  margin-bottom:10px;
+  text-align:center;
+  font-size:12px;
+  font-weight:900;
+  color:var(--grey-500);
+}
+
+.monthGrid{
+  display:grid;
+  grid-template-columns:repeat(7, minmax(0, 1fr));
+  gap:10px;
+}
+
+.monthDay{
+  min-height:88px;
+  border:none;
+  border-radius:18px;
+  background:rgba(255,255,255,.10);
+  color:var(--white);
+  padding:10px 8px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
+}
+
+.monthDay:hover:not(:disabled){
+  transform:translateY(-1px);
+  box-shadow:inset 0 0 0 1px rgba(127,193,255,.32), 0 12px 26px rgba(0,0,0,.12);
+}
+
+.monthDay:disabled{
+  cursor:not-allowed;
+}
+
+.monthDay.currentMonth.available{
+  background:linear-gradient(180deg, rgba(31,122,92,.30), rgba(255,255,255,.10));
+  box-shadow:inset 0 0 0 1px rgba(122,224,167,.14);
+}
+
+.monthDay.currentMonth.unavailable{
+  background:rgba(255,255,255,.10);
+  color:rgba(234,242,255,.34);
+}
+
+.monthDay.outsideMonth{
+  background:rgba(255,255,255,.06);
+  color:rgba(234,242,255,.24);
+}
+
+.monthDay.selected{
+  background:linear-gradient(135deg, rgba(47,128,237,.85), rgba(39,174,96,.24));
+  color:var(--white);
+  box-shadow:inset 0 0 0 1px rgba(127,193,255,.48), 0 14px 28px rgba(47,128,237,.18);
+}
+
+.monthDayNumber{
+  font-size:28px;
+  font-weight:900;
+  line-height:1;
+}
+
+.monthDayMeta{
+  font-size:11px;
+  font-weight:800;
+}
+
+.legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:16px;
+}
+
+.chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);
+  background:rgba(255,255,255,.08);
+  font-weight:800;
+  font-size:12px;
+}
+
+.dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  display:inline-block;
+}
+
+.dot.ok{
+  background:rgba(39,174,96,.95);
+}
+
+.dot.none{
+  background:rgba(255,255,255,.26);
+}
+
+.timeSlotGrid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+  margin-top:16px;
+}
+
+.timeSlotButton{
+  min-height:58px;
+  border:none;
+  border-radius:16px;
+  background:rgba(255,255,255,.10);
+  color:var(--white);
+  font-size:18px;
+  font-weight:800;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);
+}
+
+.timeSlotButton:hover{
+  transform:translateY(-1px);
+  box-shadow:inset 0 0 0 1px rgba(127,193,255,.32), 0 12px 26px rgba(0,0,0,.12);
+}
+
+.timeSlotButton.selected{
+  background:linear-gradient(135deg, rgba(47,128,237,.84), rgba(39,174,96,.20));
+  color:var(--white);
+  box-shadow:inset 0 0 0 1px rgba(127,193,255,.46), 0 14px 28px rgba(47,128,237,.18);
+}
+
+.selectionSummary{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:16px;
+  padding-top:6px;
+  border-top:1px solid rgba(255,255,255,.10);
+}
+
+.summaryItem{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:12px 14px;
+  border-radius:16px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.summaryLabel{
+  font-size:12px;
+  font-weight:900;
+  color:var(--grey-500);
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.emptyState{
+  grid-column:1 / -1;
+  padding:20px;
+  border-radius:16px;
+  background:rgba(255,255,255,.06);
+  border:1px dashed rgba(255,255,255,.14);
+  text-align:center;
+  color:var(--grey-700);
+  font-weight:700;
+}
+
+.bookingActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  margin-top:20px;
+  padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.10);
+}
+
+.bookingActions .btn{
+  min-width:180px;
+}
+
+@media (max-width:1100px){
+  .bookingColumns{
+    grid-template-columns:1fr;
+  }
+
+  .bookingColumn{
+    min-height:auto;
+  }
+}
+
+@media (max-width:700px){
+  .monthGrid{
+    gap:8px;
+  }
+
+  .monthDay{
+    min-height:72px;
+  }
+
+  .monthDayNumber{
+    font-size:22px;
+  }
+
+  .timeSlotGrid{
+    grid-template-columns:1fr;
+  }
+
+  .selectionSummary{
+    grid-template-columns:1fr;
+  }
+
+  .bookingActions{
+    flex-direction:column;
+  }
+
+  .bookingActions .btn{
+    width:100%;
+  }
+}
