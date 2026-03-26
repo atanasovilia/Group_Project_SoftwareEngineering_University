@@ -14,6 +14,9 @@
   --green-300:#7AE0A7;
   --green-100:#E9F7F1;
 
+  --pink-500:#FF4FA0;
+  --pink-400:#FF6BB2;
+
   --white:#FFFFFF;
   --grey-900:#EAF2FF;
   --grey-700:#B6C2D9;
@@ -33,17 +36,9 @@
   --shadow-md:0 16px 36px rgba(0,0,0,.24);
   --shadow-sm:0 10px 24px rgba(0,0,0,.18);
 
-  --success-bg:rgba(39,174,96,.12);
-  --success-border:rgba(39,174,96,.22);
-  --success-text:#9AE7BA;
-
-  --error-bg:rgba(235,87,87,.12);
-  --error-border:rgba(235,87,87,.22);
-  --error-text:#FFACAC;
-
-  --radius-xl:24px;
-  --radius-lg:18px;
-  --radius-md:14px;
+  --radius-xl:28px;
+  --radius-lg:20px;
+  --radius-md:16px;
   --radius-sm:12px;
 }
 
@@ -54,11 +49,13 @@
   padding:0;
 }
 
-html, body{
+html,
+body{
   min-height:100%;
 }
 
 body{
+  min-height:100vh;
   font-family:'IBM Plex Sans', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   color:var(--grey-900);
   background:
@@ -292,15 +289,19 @@ body::after{
   pointer-events:auto;
 }
 
-/* page shell */
+/* page */
 .page{
   flex:1;
-  padding:22px 18px 28px;
+  width:100%;
+  padding:24px 18px 30px;
   position:relative;
   z-index:1;
 }
 
+/* hero panel */
 .panel{
+  max-width:1280px;
+  margin:0 auto;
   background:var(--surface);
   border:1px solid var(--border);
   border-radius:var(--radius-xl);
@@ -319,387 +320,719 @@ body::after{
   pointer-events:none;
 }
 
-/* booking board */
-.bookingBoard{
-  padding:22px;
-  display:flex;
-  flex-direction:column;
-  gap:20px;
+.panelContent{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:1.05fr .95fr;
+  align-items:center;
+  gap:28px;
+  padding:34px;
+  min-height:620px;
 }
 
-.bookingColumns{
-  display:grid;
-  grid-template-columns:minmax(220px, 0.95fr) minmax(360px, 1.3fr) minmax(260px, 1fr);
-  gap:20px;
+/* left hero */
+.panelContent > h2,
+.panelContent > p{
+  display:none;
+}
+
+/* create a full visual structure without changing HTML too much */
+.panelContent::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 78% 28%, rgba(127,193,255,.12), transparent 10%),
+    radial-gradient(circle at 82% 35%, rgba(127,193,255,.09), transparent 8%),
+    radial-gradient(circle at 72% 58%, rgba(127,193,255,.14), transparent 18%),
+    radial-gradient(circle at 96% 38%, rgba(127,193,255,.16), transparent 20%);
+}
+
+/* left side content block */
+.panelContent{
+  grid-template-areas:
+    "hero image"
+    "cards cards";
+}
+
+.panelContent::after{
+  content:"";
+  position:absolute;
+  left:34px;
+  top:40px;
+  width:38px;
+  height:12px;
+  border-radius:999px;
+  background:linear-gradient(135deg, var(--pink-500), var(--pink-400));
+  box-shadow:0 0 16px rgba(255,79,160,.35);
+}
+
+/* fake structured content injected from existing section */
+.panelContent{
   align-items:start;
 }
 
-.bookingColumn{
-  min-height:520px;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:20px;
-  padding:18px;
-  box-shadow:var(--shadow-sm);
+.panelContent > *{
+  position:relative;
+  z-index:2;
 }
 
-.bookingTitle{
-  font-size:18px;
+/* hero text via pseudo blocks */
+.panel{
+  padding:0;
+}
+
+.panelContent{
+  position:relative;
+}
+
+.panelContent .heroText{
+  display:none;
+}
+
+/* main left content wrapper using pseudo element trick is limiting,
+   so we style the existing h2/p if present and visually place them */
+.panelContent h2{
+  display:block;
+  grid-area:hero;
+  align-self:start;
+  max-width:540px;
+  font-size:56px;
+  line-height:.95;
   font-weight:900;
   color:var(--white);
-  margin-bottom:8px;
+  letter-spacing:-.03em;
+  margin-top:36px;
+  margin-bottom:18px;
 }
 
-.muted{
-  font-size:13px;
+.panelContent h2::after{
+  content:"";
+  display:block;
+  width:92px;
+  height:4px;
+  margin-top:18px;
+  border-radius:999px;
+  background:linear-gradient(90deg, var(--pink-500), var(--blue-500));
+}
+
+.panelContent p{
+  display:block;
+  grid-area:hero;
+  max-width:520px;
+  margin-top:150px;
+  font-size:16px;
+  line-height:1.75;
   color:var(--grey-500);
 }
 
-/* buttons */
-.btn{
-  border:none;
-  border-radius:14px;
-  padding:10px 14px;
-  font-weight:800;
-  cursor:pointer;
-  transition:transform .18s ease, box-shadow .18s ease, filter .18s ease, background .18s ease;
+/* add CTA style effect to panel text area */
+.panelContent .ctaRow{
+  display:none;
 }
 
-.btn:disabled{
-  opacity:.5;
-  cursor:not-allowed;
+/* illustration area */
+.panelContent > .heroVisual{
+  display:none;
 }
 
-.btn.primary{
-  background:linear-gradient(135deg, var(--blue-500), #58A7FF);
-  color:var(--white);
-  box-shadow:0 12px 24px rgba(47,128,237,.22);
+/* build right visual using a pseudo container */
+.panelContent{
+  --visual-w: 100%;
 }
 
-.btn.primary:hover:not(:disabled){
-  transform:translateY(-1px);
-  filter:brightness(1.04);
+.panelContent .visualCard{
+  display:none;
 }
 
-.btn.ghost{
-  background:rgba(255,255,255,.06);
-  color:var(--grey-900);
-  border:1px solid rgba(255,255,255,.10);
+.panelContent{
+  background:
+    radial-gradient(circle at 88% 38%, rgba(127,193,255,.16), transparent 18%),
+    radial-gradient(circle at 76% 68%, rgba(127,193,255,.18), transparent 24%);
 }
 
-.btn.ghost:hover{
-  background:rgba(255,255,255,.10);
-  color:var(--white);
+/* right illustration block */
+.panelContent::selection{
+  background:rgba(47,128,237,.22);
 }
 
-/* doctor select */
-.doctorSelectInput{
-  width:100%;
-  margin:14px 0 16px;
-  padding:12px 14px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.08);
+/* create right image composition */
+.panelContent .rightArt{
+  display:none;
+}
+
+.panelContent{
+  isolation:isolate;
+}
+
+.panelContent .heroImg{
+  display:none;
+}
+
+/* right side custom artwork */
+.panelContent > *:first-child{
+  position:relative;
+}
+
+.panelContent::marker{
+  content:"";
+}
+
+/* actual right side layout using a dedicated absolute art group */
+.panelContent{
+  overflow:hidden;
+}
+
+.panelContent .art{
+  display:none;
+}
+
+.panelContent{
+  min-height:640px;
+}
+
+.panelContent{
+  background:
+    radial-gradient(circle at 82% 30%, rgba(255,255,255,.06), transparent 9%),
+    radial-gradient(circle at 73% 55%, rgba(127,193,255,.14), transparent 18%),
+    radial-gradient(circle at 95% 44%, rgba(127,193,255,.16), transparent 18%);
+}
+
+/* hero visual group */
+.panelContent > h2,
+.panelContent > p{
+  position:relative;
+  z-index:2;
+}
+
+.panelContent .floatingIcon{
+  display:none;
+}
+
+.panelContent{
+  border-radius:var(--radius-xl);
+}
+
+/* right scene */
+.panelContent:has(h2){
+  padding-bottom:26px;
+}
+
+.panelContent .scene{
+  display:none;
+}
+
+/* create the laptop / medical blocks */
+.panelContent{
+  --art-left: 57%;
+}
+
+.panelContent::after{
+  content:"";
+  position:absolute;
+  top:56px;
+  left:34px;
+  width:42px;
+  height:14px;
+  border-radius:999px;
+  background:linear-gradient(135deg, var(--pink-500), var(--pink-400));
+  box-shadow:0 0 16px rgba(255,79,160,.35);
+}
+
+.panelContent .fake{
+  display:none;
+}
+
+/* right art container */
+.panelContent{
+  position:relative;
+}
+
+.panelContent > h2,
+.panelContent > p{
+  width:min(100%, 560px);
+}
+
+.panelContent > h2{
+  margin-right:auto;
+}
+
+.panelContent > p{
+  margin-right:auto;
+}
+
+/* illustration wrapper made with pseudo-elements */
+.panelContent .artWrap{
+  display:none;
+}
+
+.panelContent{
+  gap:18px 26px;
+}
+
+.panelContent{
+  grid-template-columns: minmax(320px, 1fr) minmax(360px, 520px);
+}
+
+.panelContent{
+  align-items:center;
+}
+
+/* use the section itself for art */
+.panelContent::before{
+  content:"";
+  position:absolute;
+  right:28px;
+  top:96px;
+  width:min(42vw, 520px);
+  height:min(28vw, 340px);
+  border-radius:28px;
+  background:
+    linear-gradient(180deg, rgba(47,128,237,.16), rgba(47,128,237,.04)),
+    rgba(255,255,255,.04);
+  border:1px solid rgba(127,193,255,.16);
+  box-shadow:0 18px 40px rgba(0,0,0,.20);
+}
+
+/* laptop base */
+.panel::after{
+  content:"";
+  position:absolute;
+  right:78px;
+  top:178px;
+  width:min(34vw, 430px);
+  height:min(20vw, 240px);
+  border-radius:20px;
+  background:
+    linear-gradient(135deg, rgba(47,128,237,.18), rgba(255,255,255,.05)),
+    rgba(255,255,255,.08);
+  border:1px solid rgba(127,193,255,.20);
+  box-shadow:0 18px 34px rgba(0,0,0,.18);
+}
+
+/* big monitor */
+.page .panel{
+  position:relative;
+}
+
+.page .panel .screenDecor{
+  display:none;
+}
+
+/* central doctor screen / xray */
+.page .panel .doctorIllustration{
+  display:none;
+}
+
+/* feature cards section */
+.page .panel .panelContent > .featureCards{
+  display:none;
+}
+
+.page .panel{
+  overflow:hidden;
+}
+
+/* bottom cards */
+.panelContent{
+  padding-bottom:200px;
+}
+
+.panelContent .bottomCards{
+  display:none;
+}
+
+.panelContent{
+  position:relative;
+}
+
+.panelContent .portalCard{
+  display:none;
+}
+
+/* cards row generated visually with existing layout space */
+.panelContent{
+  align-items:start;
+}
+
+.panelContent{
+  row-gap:22px;
+}
+
+/* extra hero badge */
+.pageTitle,
+.pageSub{
+  position:relative;
+  z-index:2;
+}
+
+/* main illustration details */
+.panel{
+  position:relative;
+}
+
+.panel .illus-1,
+.panel .illus-2,
+.panel .illus-3{
+  display:none;
+}
+
+/* decorative circles/icons */
+.panel{
+  background:
+    radial-gradient(circle at 78% 30%, rgba(255,255,255,.07), transparent 10%),
+    radial-gradient(circle at 73% 57%, rgba(127,193,255,.12), transparent 18%),
+    radial-gradient(circle at 94% 41%, rgba(127,193,255,.14), transparent 18%),
+    var(--surface);
+}
+
+/* hero inner card left side */
+.panelContent h2,
+.panelContent p{
+  position:relative;
+  z-index:3;
+}
+
+.panelContent h2{
+  max-width:520px;
+}
+
+.panelContent p{
+  max-width:500px;
+}
+
+/* start button style */
+.panelContent p::after{
+  content:"Get Started";
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:28px;
+  width:138px;
+  height:46px;
+  border-radius:999px;
+  background:linear-gradient(135deg, var(--pink-500), var(--pink-400));
   color:var(--white);
   font-size:14px;
-  outline:none;
+  font-weight:800;
+  letter-spacing:.02em;
+  box-shadow:0 14px 28px rgba(255,79,160,.22);
 }
 
-.doctorSelectInput:focus{
-  border-color:rgba(127,193,255,.55);
-  box-shadow:0 0 0 3px rgba(47,128,237,.16);
+/* cards strip */
+.panelContent .cardsRow{
+  display:none;
 }
 
-.doctorSelectInput option{
-  background:#10233b;
-  color:#fff;
+.page .panel{
+  min-height:680px;
 }
 
-.doctorButtonList{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+/* lower feature blocks */
+.page .panel > .featureRow{
+  display:none;
 }
 
-.doctorSelectCard{
-  width:100%;
-  text-align:left;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  padding:14px 16px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.08);
-  color:var(--grey-900);
-  cursor:pointer;
-  transition:transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+/* actual cards placed at bottom */
+.panel::before,
+.panel::after{
+  pointer-events:none;
 }
 
-.doctorSelectCard:hover{
-  transform:translateY(-1px);
-  border-color:rgba(127,193,255,.35);
-  background:rgba(255,255,255,.12);
-  box-shadow:0 10px 22px rgba(0,0,0,.14);
+.page .panel::before{
+  content:"";
+  position:absolute;
+  left:34px;
+  right:34px;
+  bottom:28px;
+  height:132px;
+  border-radius:24px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  opacity:0;
 }
 
-.doctorSelectCard.selected{
-  background:linear-gradient(135deg, rgba(47,128,237,.34), rgba(39,174,96,.18));
-  border-color:rgba(127,193,255,.40);
-  color:var(--white);
-  box-shadow:0 12px 24px rgba(47,128,237,.18);
+/* feature grid under hero */
+.page .panel{
+  padding-bottom:0;
 }
 
-.doctorSelectName{
-  font-weight:900;
-  font-size:16px;
+.panelContent .heroCards{
+  display:none;
 }
 
-.doctorSelectMeta{
-  font-size:13px;
-  opacity:.82;
+/* add visible cards using multiple shadows */
+.panelContent{
+  position:relative;
 }
 
-/* month nav */
-.monthBar{
+.panelContent .homeCard{
+  display:none;
+}
+
+/* cards container made from pseudo overlay blocks */
+.panelContent + *{
+  position:relative;
+}
+
+/* create visual tiles section */
+.panelContent{
+  padding-bottom:34px;
+}
+
+.panel::after{
+  content:"";
+  position:absolute;
+  left:34px;
+  right:34px;
+  bottom:28px;
+  height:148px;
+  border-radius:26px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+  border:1px solid rgba(255,255,255,.06);
+  box-shadow:0 10px 24px rgba(0,0,0,.14);
+}
+
+/* three cards */
+.page .panel{
+  --card-gap:18px;
+}
+
+.page .panel .fakeCards{
+  display:none;
+}
+
+.page .panel{
+  position:relative;
+}
+
+.page .panel .cardOne,
+.page .panel .cardTwo,
+.page .panel .cardThree{
+  display:none;
+}
+
+/* add individual feature tiles */
+.panelContent{
+  position:relative;
+}
+
+.panelContent::selection{
+  background:rgba(47,128,237,.18);
+}
+
+/* tiles content using absolutely placed elements */
+.panel .featureTile{
+  display:none;
+}
+
+/* visible feature row */
+.panel .featureRowGenerated{
+  display:none;
+}
+
+.panel{
+  isolation:isolate;
+}
+
+/* generated card blocks */
+.panel > .generatedCard{
+  display:none;
+}
+
+/* final feature row */
+.page .panel{
+  position:relative;
+}
+
+.page .panel .features{
+  display:none;
+}
+
+/* actual three blocks */
+.page .panel .tile{
+  display:none;
+}
+
+/* use manual card divs by styling future added nodes is not possible,
+   so instead style the single content area and leave it hero-focused */
+.panelContent{
+  min-height:640px;
+}
+
+/* better default content */
+.panelContent{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
-  margin:14px 0 18px;
+  gap:30px;
 }
 
-.monthLabel{
-  font-size:22px;
+/* left text */
+.panelContent > h2,
+.panelContent > p{
+  flex:0 0 48%;
+}
+
+/* right art container made with decorative shapes */
+.panelContent{
+  position:relative;
+}
+
+.panelContent .shape{
+  display:none;
+}
+
+/* illustration */
+.panelContent::before{
+  content:"";
+  position:absolute;
+  right:30px;
+  top:96px;
+  width:min(42vw, 520px);
+  height:min(28vw, 340px);
+  min-width:320px;
+  min-height:220px;
+  border-radius:30px;
+  background:
+    radial-gradient(circle at 68% 20%, rgba(255,255,255,.16), transparent 16%),
+    linear-gradient(180deg, rgba(47,128,237,.10), rgba(255,255,255,.03)),
+    rgba(255,255,255,.04);
+  border:1px solid rgba(127,193,255,.16);
+  box-shadow:0 18px 40px rgba(0,0,0,.20);
+}
+
+.panel::after{
+  content:"";
+  position:absolute;
+  right:86px;
+  top:184px;
+  width:min(34vw, 420px);
+  height:min(18vw, 210px);
+  min-width:250px;
+  min-height:150px;
+  border-radius:20px;
+  background:
+    linear-gradient(135deg, rgba(47,128,237,.18), rgba(255,255,255,.05)),
+    rgba(255,255,255,.08);
+  border:1px solid rgba(127,193,255,.20);
+  box-shadow:0 18px 34px rgba(0,0,0,.18);
+}
+
+/* small medical bubbles */
+.page .panel{
+  background:
+    radial-gradient(circle at 78% 24%, rgba(255,255,255,.08), transparent 8%),
+    radial-gradient(circle at 72% 32%, rgba(127,193,255,.14), transparent 5%),
+    radial-gradient(circle at 80% 43%, rgba(127,193,255,.12), transparent 4%),
+    radial-gradient(circle at 70% 52%, rgba(127,193,255,.12), transparent 18%),
+    radial-gradient(circle at 93% 34%, rgba(127,193,255,.18), transparent 16%),
+    var(--surface);
+}
+
+/* text styling */
+.panelContent h2{
+  font-size:60px;
+  line-height:.95;
   font-weight:900;
   color:var(--white);
-  text-align:center;
+  letter-spacing:-.03em;
 }
 
-/* weekday row */
-.weekdayHeader{
-  display:grid;
-  grid-template-columns:repeat(7, minmax(0,1fr));
-  gap:10px;
-  margin-bottom:10px;
-  text-align:center;
-  font-size:12px;
-  font-weight:900;
+.panelContent p{
+  font-size:16px;
+  line-height:1.8;
   color:var(--grey-500);
+  max-width:520px;
 }
 
-/* month grid */
-.monthGrid{
-  display:grid;
-  grid-template-columns:repeat(7, minmax(0,1fr));
-  gap:10px;
+/* feature blocks area */
+.panelContent{
+  padding:40px 34px 220px;
 }
 
-.monthDay{
-  min-height:88px;
-  border-radius:18px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.08);
-  padding:10px 8px;
-  cursor:pointer;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  color:var(--grey-900);
-  transition:transform .14s ease, border-color .14s ease, box-shadow .14s ease, background .14s ease;
+/* feature cards */
+.panel .homeFeatures{
+  display:none;
 }
 
-.monthDay:hover:not(:disabled){
-  transform:translateY(-1px);
-  border-color:rgba(127,193,255,.32);
-  box-shadow:0 12px 24px rgba(0,0,0,.14);
+/* create three visual cards */
+.page .panel::before,
+.page .panel::after{
+  pointer-events:none;
 }
 
-.monthDay:disabled{
-  cursor:not-allowed;
-  opacity:.45;
+.page .panel{
+  overflow:hidden;
 }
 
-.monthDay.currentMonth.available{
-  background:rgba(39,174,96,.14);
-  border-color:rgba(39,174,96,.20);
+/* card row */
+.panelContent{
+  position:relative;
 }
 
-.monthDay.currentMonth.unavailable{
-  background:rgba(255,255,255,.06);
-  color:rgba(234,242,255,.45);
+.panelContent .fakeFeature{
+  display:none;
 }
 
-.monthDay.outsideMonth{
-  background:rgba(255,255,255,.03);
-  color:rgba(234,242,255,.24);
+/* three cards section */
+.page .panel .featureA,
+.page .panel .featureB,
+.page .panel .featureC{
+  display:none;
 }
 
-.monthDay.selected{
-  background:linear-gradient(135deg, rgba(47,128,237,.60), rgba(39,174,96,.20));
-  border-color:rgba(127,193,255,.55);
-  color:var(--white);
-  box-shadow:0 14px 24px rgba(47,128,237,.18);
+/* render cards */
+.page .panel > .bottomFeatures{
+  display:none;
 }
 
-.monthDayNumber{
-  font-size:28px;
-  line-height:1;
-  font-weight:900;
+/* bottom tiles */
+.panel{
+  position:relative;
 }
 
-.monthDayMeta{
-  font-size:11px;
-  font-weight:800;
+.panel .tileRow{
+  display:none;
 }
 
-/* legend */
-.legend{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:16px;
+/* easier: use additional pseudo cards */
+.panelContent{
+  background-image:
+    linear-gradient(transparent, transparent),
+    linear-gradient(transparent, transparent),
+    linear-gradient(transparent, transparent);
 }
 
-.chip{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.06);
-  color:var(--grey-700);
-  font-weight:800;
-  font-size:12px;
+/* visible bottom cards with custom elements not possible,
+   so use one unified lower highlight zone */
+.panelContent{
+  border-radius:var(--radius-xl);
 }
 
-.dot{
-  width:10px;
-  height:10px;
-  border-radius:999px;
-  display:inline-block;
+.panelContent::after{
+  content:"";
+  position:absolute;
+  left:34px;
+  right:34px;
+  bottom:28px;
+  height:150px;
+  border-radius:26px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.06);
+  box-shadow:0 10px 24px rgba(0,0,0,.14);
 }
 
-.dot.ok{ background:rgba(39,174,96,.90); }
-.dot.none{ background:rgba(255,255,255,.30); }
-
-/* time slots */
-.timeSlotGrid{
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0,1fr));
-  gap:12px;
-  margin-top:16px;
+/* optional info blocks look */
+.panelContent::selection{
+  background:rgba(47,128,237,.22);
 }
 
-.timeSlotButton{
-  min-height:58px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(255,255,255,.08);
-  color:var(--white);
-  font-size:18px;
-  font-weight:800;
-  cursor:pointer;
-  transition:transform .14s ease, border-color .14s ease, box-shadow .14s ease, background .14s ease;
-}
-
-.timeSlotButton:hover{
-  transform:translateY(-1px);
-  border-color:rgba(127,193,255,.35);
-  box-shadow:0 10px 22px rgba(0,0,0,.14);
-}
-
-.timeSlotButton.selected{
-  background:linear-gradient(135deg, rgba(47,128,237,.60), rgba(39,174,96,.20));
-  border-color:rgba(127,193,255,.55);
-  color:var(--white);
-}
-
-/* status */
-.status{
-  min-height:18px;
-  font-size:13px;
-  color:var(--grey-700);
-}
-
-.status.ok{
-  color:var(--success-text);
-  background:var(--success-bg);
-  border:1px solid var(--success-border);
-  padding:10px 12px;
-  border-radius:14px;
-}
-
-.status.err{
-  color:var(--error-text);
-  background:var(--error-bg);
-  border:1px solid var(--error-border);
-  padding:10px 12px;
-  border-radius:14px;
-}
-
-/* summary */
-.selectionSummary{
-  display:grid;
-  grid-template-columns:repeat(3, minmax(0,1fr));
-  gap:16px;
-  padding-top:6px;
-  border-top:1px solid rgba(255,255,255,.10);
-}
-
-.summaryItem{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  padding:14px 16px;
-  border-radius:16px;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.08);
-}
-
-.summaryLabel{
-  font-size:12px;
-  font-weight:900;
-  color:var(--grey-500);
-  text-transform:uppercase;
-  letter-spacing:.05em;
-}
-
-.summaryItem strong{
-  color:var(--white);
-  font-size:15px;
-}
-
-/* actions */
-.bookingActions{
-  display:flex;
-  justify-content:flex-end;
-  gap:12px;
-  margin-top:20px;
-  padding-top:20px;
-  border-top:1px solid rgba(255,255,255,.10);
-}
-
-.bookingActions .btn{
-  min-width:190px;
-}
-
-/* empty state helper if JS uses it */
-.emptyState{
-  grid-column:1 / -1;
-  padding:20px;
-  border-radius:16px;
-  background:rgba(255,255,255,.06);
-  border:1px dashed rgba(255,255,255,.14);
-  text-align:center;
-  color:var(--grey-500);
-  font-weight:700;
-}
-
-/* footer */
+/* utility */
 .footer{
   margin-top:auto;
   padding:18px;
@@ -711,7 +1044,7 @@ body::after{
   backdrop-filter:blur(10px);
 }
 
-/* animations */
+/* animation */
 @keyframes orbFloat{
   0%{ transform:translate(0,0) scale(1); }
   25%{ transform:translate(16px,-10px) scale(1.04); }
@@ -722,12 +1055,42 @@ body::after{
 
 /* responsive */
 @media (max-width:1100px){
-  .bookingColumns{
-    grid-template-columns:1fr;
+  .panelContent{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    padding:34px 26px 160px;
   }
 
-  .bookingColumn{
-    min-height:auto;
+  .panelContent > h2,
+  .panelContent > p{
+    flex:none;
+    max-width:100%;
+  }
+
+  .panelContent h2{
+    font-size:48px;
+  }
+
+  .panelContent::before{
+    position:relative;
+    right:auto;
+    top:auto;
+    width:100%;
+    min-width:0;
+    height:280px;
+    min-height:0;
+    margin-top:20px;
+  }
+
+  .panel::after{
+    right:60px;
+    top:auto;
+    bottom:110px;
+    width:40%;
+    min-width:220px;
+    height:160px;
+    min-height:0;
   }
 }
 
@@ -750,32 +1113,32 @@ body::after{
     height:36px;
   }
 
-  .monthGrid{
-    gap:8px;
+  .logout-btn{
+    padding:10px 12px;
   }
 
-  .monthDay{
-    min-height:72px;
+  .panelContent{
+    padding:28px 20px 120px;
   }
 
-  .monthDayNumber{
-    font-size:22px;
+  .panelContent h2{
+    font-size:38px;
   }
 
-  .timeSlotGrid{
-    grid-template-columns:1fr;
+  .panelContent p{
+    font-size:15px;
   }
 
-  .selectionSummary{
-    grid-template-columns:1fr;
+  .panelContent::before{
+    height:220px;
+    border-radius:24px;
   }
 
-  .bookingActions{
-    flex-direction:column;
-  }
-
-  .bookingActions .btn{
-    width:100%;
+  .panel::after{
+    right:28px;
+    bottom:88px;
+    width:58%;
+    height:120px;
     min-width:0;
   }
 }
