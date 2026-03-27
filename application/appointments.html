@@ -47,14 +47,12 @@
     <section class="panel appointmentsPanel">
       <div id="statusMsg" class="status" aria-live="polite"></div>
 
-      <!-- Filters -->
       <div class="appointmentsFilters">
         <button class="btn ghost filterBtn active" data-filter="all">All</button>
         <button class="btn ghost filterBtn" data-filter="confirmed">Confirmed</button>
         <button class="btn ghost filterBtn" data-filter="cancelled">Cancelled</button>
       </div>
 
-      <!-- Appointments List -->
       <div id="appointmentsList" class="appointmentsList" aria-live="polite">
         <div class="emptyState">Loading your appointments...</div>
       </div>
@@ -63,61 +61,106 @@
 
   <script src="script.js"></script>
   <script>
-    const appointmentPageInit = async () => {
-      const statusMsg = document.getElementById('statusMsg');
-      const appointmentsList = document.getElementById('appointmentsList');
+    const statusMsg = document.getElementById('statusMsg');
+    const appointmentsList = document.getElementById('appointmentsList');
+    const filtersContainer = document.querySelector('.appointmentsFilters');
+    const authUser = getAuthUser();
+    const state = {
+      appointments: [],
+      activeFilter: 'all',
+      pendingCancelIds: new Set(),
+    };
 
-      const authUser = getAuthUser();
-      if (!authUser) {
-        window.location.href = 'index.html';
-        return;
-      }
+    if (!authUser) {
+      window.location.href = 'index.html';
+    } else {
+      initializeAppointmentsPage();
+    }
 
-      // Load appointments
+    async function initializeAppointmentsPage() {
+      filtersContainer?.addEventListener('click', handleFilterClick);
+      appointmentsList?.addEventListener('click', handleAppointmentsClick);
+      await loadAppointments();
+    }
+
+    async function loadAppointments() {
       try {
-        const response = await fetch(`${API_BASE_URL}/user/${authUser.id}/appointments`);
-        const data = await response.json();
+        const { data } = await apiRequest(`/user/${authUser.id}/appointments`, {
+          defaultErrorMessage: 'Could not load appointments',
+        });
 
-        if (!response.ok) {
-          renderStatusMessage(statusMsg, data.error || 'Could not load appointments', 'err');
-          return;
-        }
-
-        if (!data.appointments || data.appointments.length === 0) {
-          appointmentsList.innerHTML = '<div class="emptyState">No appointments scheduled yet.</div>';
-          renderStatusMessage(statusMsg, '');
-          return;
-        }
-
-        renderAppointments(data.appointments);
+        state.appointments = Array.isArray(data.appointments) ? data.appointments : [];
+        state.pendingCancelIds.clear();
+        renderAppointments();
         renderStatusMessage(statusMsg, '');
       } catch (error) {
         renderStatusMessage(statusMsg, 'Could not connect to the server.', 'err');
       }
-    };
+    }
 
     function formatDateDisplay(dateStr) {
       const date = new Date(dateStr);
-      return new Intl.DateTimeFormat('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+      return new Intl.DateTimeFormat('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(date);
     }
 
-    function renderAppointments(appointments) {
-      const appointmentsList = document.getElementById('appointmentsList');
+    function getFilteredAppointments() {
+      if (state.activeFilter === 'all') {
+        return state.appointments;
+      }
+
+      return state.appointments.filter((appointment) => appointment.status === state.activeFilter);
+    }
+
+    function updateFilterButtons() {
+      document.querySelectorAll('.filterBtn').forEach((button) => {
+        button.classList.toggle('active', button.dataset.filter === state.activeFilter);
+      });
+    }
+
+    function renderAppointments() {
+      const visibleAppointments = getFilteredAppointments();
       appointmentsList.innerHTML = '';
 
-      appointments.forEach((apt) => {
+      if (state.appointments.length === 0) {
+        appointmentsList.innerHTML = '<div class="emptyState">No appointments scheduled yet.</div>';
+        updateFilterButtons();
+        return;
+      }
+
+      if (visibleAppointments.length === 0) {
+        const emptyMessages = {
+          confirmed: 'No confirmed appointments.',
+          cancelled: 'No cancelled appointments.',
+        };
+        appointmentsList.innerHTML =
+          `<div class="emptyState">${emptyMessages[state.activeFilter] || 'No appointments found.'}</div>`;
+        updateFilterButtons();
+        return;
+      }
+
+      visibleAppointments.forEach((appointment) => {
         const appointmentCard = document.createElement('div');
-        appointmentCard.className = `appointmentCard ${apt.status}`;
-        appointmentCard.id = `apt-${apt.id}`;
+        appointmentCard.className = `appointmentCard ${appointment.status}`;
+        appointmentCard.id = `apt-${appointment.id}`;
 
-        const dateDisplay = formatDateDisplay(apt.appointment_date);
-        const timeDisplay = apt.appointment_time;
-        const doctorName = apt.doctor_name || 'Unknown Doctor';
-        const specialty = apt.doctor_specialty || '';
-        const room = apt.room_number || '';
+        const dateDisplay = formatDateDisplay(appointment.appointment_date);
+        const timeDisplay = appointment.appointment_time;
+        const doctorName = appointment.doctor_name || 'Unknown Doctor';
+        const specialty = appointment.doctor_specialty || '';
+        const room = appointment.room_number || '';
+        const isPendingCancel = state.pendingCancelIds.has(String(appointment.id));
 
-        const statusBadge = apt.status === 'confirmed' ? '✓ Confirmed' : '✗ Cancelled';
-        const statusClass = apt.status === 'confirmed' ? 'confirmed' : 'cancelled';
+        let statusBadge = 'Confirmed';
+        let statusClass = 'confirmed';
+        if (appointment.status === 'cancelled') {
+          statusBadge = isPendingCancel ? 'Cancelling...' : 'Cancelled';
+          statusClass = 'cancelled';
+        }
 
         appointmentCard.innerHTML = `
           <div class="appointmentCardHeader">
@@ -144,9 +187,9 @@
           </div>
 
           <div class="appointmentCardActions">
-            ${apt.status === 'confirmed' 
-              ? `<button class="btn danger cancelBtn" data-apt-id="${apt.id}">Cancel Appointment</button>`
-              : '<span class="mutedText">This appointment has been cancelled</span>'
+            ${appointment.status === 'confirmed'
+              ? `<button class="btn danger cancelBtn" data-apt-id="${appointment.id}">Cancel Appointment</button>`
+              : `<span class="mutedText">${isPendingCancel ? 'Cancelling appointment...' : 'This appointment has been cancelled'}</span>`
             }
           </div>
         `;
@@ -154,71 +197,66 @@
         appointmentsList.appendChild(appointmentCard);
       });
 
-      // Attach cancel event listeners
-      document.querySelectorAll('.cancelBtn').forEach((btn) => {
-        btn.addEventListener('click', async (e) => {
-          const aptId = e.target.getAttribute('data-apt-id');
-          const statusMsg = document.getElementById('statusMsg');
-          const confirmCancel = confirm('Are you sure you want to cancel this appointment? This will free up the time slot for other users.');
+      updateFilterButtons();
+    }
 
-          if (!confirmCancel) return;
+    function handleFilterClick(event) {
+      const button = event.target.closest('.filterBtn');
+      if (!button) {
+        return;
+      }
 
-          try {
-            const response = await fetch(`${API_BASE_URL}/appointments/${aptId}/cancel`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
+      state.activeFilter = button.dataset.filter || 'all';
+      renderAppointments();
+    }
 
-            const data = await response.json();
+    async function handleAppointmentsClick(event) {
+      const cancelButton = event.target.closest('.cancelBtn');
+      if (!cancelButton) {
+        return;
+      }
 
-            if (!response.ok) {
-              renderStatusMessage(statusMsg, data.error || 'Could not cancel appointment', 'err');
-              return;
-            }
+      const appointmentId = cancelButton.dataset.aptId;
+      if (!appointmentId || state.pendingCancelIds.has(appointmentId)) {
+        return;
+      }
 
-            renderStatusMessage(statusMsg, '✓ Appointment cancelled successfully', 'ok');
+      const appointment = state.appointments.find((item) => String(item.id) === appointmentId);
+      if (!appointment || appointment.status !== 'confirmed') {
+        return;
+      }
 
-            // Reload appointments after delay
-            setTimeout(() => {
-              appointmentPageInit();
-            }, 1500);
-          } catch (error) {
-            renderStatusMessage(statusMsg, 'Could not connect to the server.', 'err');
-          }
+      const confirmCancel = confirm('Are you sure you want to cancel this appointment? This will free up the time slot for other users.');
+      if (!confirmCancel) {
+        return;
+      }
+
+      const previousStatus = appointment.status;
+      appointment.status = 'cancelled';
+      state.pendingCancelIds.add(appointmentId);
+      renderAppointments();
+      renderStatusMessage(statusMsg, 'Cancelling appointment...', null);
+
+      try {
+        const { data } = await apiRequest(`/appointments/${appointmentId}/cancel`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          defaultErrorMessage: 'Could not cancel appointment',
         });
-      });
 
-      // Filter appointments
-      applyFilter('all');
+        state.pendingCancelIds.delete(appointmentId);
+        appointment.status = data.status || 'cancelled';
+        renderAppointments();
+        renderStatusMessage(statusMsg, 'Appointment cancelled successfully', 'ok');
+      } catch (error) {
+        state.pendingCancelIds.delete(appointmentId);
+        appointment.status = previousStatus;
+        renderAppointments();
+        renderStatusMessage(statusMsg, error.message || 'Could not connect to the server.', 'err');
+      }
     }
-
-    function applyFilter(filter) {
-      const cards = document.querySelectorAll('.appointmentCard');
-      cards.forEach((card) => {
-        if (filter === 'all') {
-          card.style.display = '';
-        } else if (filter === 'confirmed') {
-          card.style.display = card.classList.contains('confirmed') ? '' : 'none';
-        } else if (filter === 'cancelled') {
-          card.style.display = card.classList.contains('cancelled') ? '' : 'none';
-        }
-      });
-    }
-
-    // Filter button event listeners
-    document.querySelectorAll('.filterBtn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.filterBtn').forEach((b) => b.classList.remove('active'));
-        e.target.classList.add('active');
-        const filter = e.target.getAttribute('data-filter');
-        applyFilter(filter);
-      });
-    });
-
-    // Initialize page
-    appointmentPageInit();
   </script>
 </body>
 </html>
