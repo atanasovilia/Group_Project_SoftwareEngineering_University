@@ -6,7 +6,7 @@
   <title>Personal Health Portal</title>
   <link
     rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
   />
   <link rel="stylesheet" href="home.css" />
 </head>
@@ -46,16 +46,47 @@
   <main class="page">
     <section class="panel">
       <div class="panelContent">
-        <div class="heroCopy">
-          <p class="heroEyebrow">Health dashboard</p>
-          <h2>Welcome to Personal Portal</h2>
-          <p class="heroText">Use the portal to review your health information, stay organised, and jump straight into your personal records.</p>
-          <a class="heroButton" id="goRecords" href="records.html">Get Started</a>
+        <div class="heroText">
+          <div class="heroBadge">Health Dashboard</div>
+          <h2 class="heroTitle">Welcome to Personal Portal</h2>
+          <div class="heroAccent" aria-hidden="true"></div>
+          <p class="heroDescription">
+            Use the portal to review your health information, stay organised, and jump straight into your personal records.
+          </p>
+          <a class="heroCta" href="doctor.html">Get Started</a>
         </div>
 
         <div class="heroVisual" aria-hidden="true">
-          <div class="heroVisualGlow"></div>
-          <img class="heroImage" src="images/home-hero-medical.svg" alt="Stylized heartbeat medical illustration" />
+          <div class="heroVisualFrame">
+            <div class="hex one"></div>
+            <div class="hex two"></div>
+            <div class="hex three"></div>
+            <div class="hex four"></div>
+            <div class="iconDot one"></div>
+            <div class="iconDot two"></div>
+            <div class="iconPlus one"></div>
+            <div class="iconPlus two"></div>
+            <div class="monitor">
+              <div class="heartbeat">
+                <svg viewBox="0 0 600 320" preserveAspectRatio="none" role="presentation">
+                  <defs>
+                    <linearGradient id="heartbeat-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#55d6ff"></stop>
+                      <stop offset="100%" stop-color="#aef0bf"></stop>
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M60 170 H190 L240 150 L285 165 L335 45 L385 250 L435 95 L500 170 H580"
+                    fill="none"
+                    stroke="url(#heartbeat-gradient)"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="10"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -195,10 +195,12 @@ function setupAuthPage() {
     event.preventDefault();
 
     const email = document.getElementById('regEmail')?.value?.trim();
+    const dateOfBirth = document.getElementById('regDob')?.value?.trim();
+    const phoneNumber = document.getElementById('regPhone')?.value?.trim();
     const password = document.getElementById('regPass')?.value;
 
-    if (!email || !password) {
-      showAuthMessage('Please enter email and password.', true);
+    if (!email || !dateOfBirth || !phoneNumber || !password) {
+      showAuthMessage('Please complete all register fields.', true);
       return;
     }
 
