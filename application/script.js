@@ -7,6 +7,14 @@ async function apiRequest(path, options = {}) {
     ...fetchOptions
   } = options;
   const requestUrl = /^https?:\/\//i.test(path) ? path : `${API_BASE_URL}${path}`;
+  const authUser = getAuthUser();
+  const headers = new Headers(fetchOptions.headers || {});
+
+  if (authUser?.id && !headers.has('X-User-Id')) {
+    headers.set('X-User-Id', String(authUser.id));
+  }
+
+  fetchOptions.headers = headers;
 
   let response;
   try {

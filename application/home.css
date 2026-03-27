@@ -24,9 +24,7 @@
 }
 
 html,
-body{
-  min-height:100%;
-}
+body{ min-height:100%; }
 
 body{
   min-height:100vh;
@@ -174,9 +172,7 @@ body::after{
   -webkit-backdrop-filter:blur(18px);
 }
 
-.sideMenu.open{
-  transform:translateX(0);
-}
+.sideMenu.open{ transform:translateX(0); }
 
 .sideMenuHeader{
   display:flex;

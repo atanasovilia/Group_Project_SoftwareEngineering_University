@@ -191,19 +191,29 @@ function buildTimeSlots(slotRanges) {
   return slots;
 }
 
+function getRequestUserId(req) {
+  const headerValue = req.get('x-user-id');
+  const userId = Number(headerValue);
+  return Number.isInteger(userId) && userId > 0 ? userId : null;
+}
+
+function ensureSelfAccess(req, res, expectedUserId) {
+  const requestUserId = getRequestUserId(req);
+  if (!requestUserId) {
+    res.status(401).json({ error: 'Authentication header required' });
+    return false;
+  }
+
+  if (requestUserId !== expectedUserId) {
+    res.status(403).json({ error: 'You can only access your own data' });
+    return false;
+  }
+
+  return true;
+}
+
 app.get('/', (req, res) => {
-  res.json({
-    message: 'API is running',
-    endpoints: {
-      health_db: 'GET /health/db',
-      doctors: 'GET /doctors',
-      calendar_month: 'GET /calendar/month?doctorId=1&month=YYYY-MM-01',
-      calendar_day: 'GET /calendar/day?doctorId=1&date=YYYY-MM-DD',
-      users: 'GET /users',
-      register: 'POST /register',
-      login: 'POST /login',
-    },
-  });
+  res.sendFile(path.join(__dirname, '../application/index.html'));
 });
 
 app.get('/health/db', async (req, res) => {
@@ -220,23 +230,6 @@ app.get('/health/db', async (req, res) => {
       ok: false,
       error: error.message || 'Database connection failed',
     });
-  }
-});
-
-// GET /users
-// Returns a list of users (without password hash) newest first.
-app.get('/users', async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      'SELECT id, name, email, created_at FROM users ORDER BY id DESC'
-    );
-    // Send users as JSON response.
-    res.json(rows);
-  } catch (error) {
-    // Log server-side error details for debugging.
-    console.error('GET /users failed:', error.message);
-    // Return generic error to client.
-    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
@@ -493,43 +486,14 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.get('/medical-records', async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT
-        mr.id,
-        mr.user_id,
-        u.name AS user_name,
-        u.email AS user_email,
-        mr.date_of_birth,
-        mr.gender,
-        mr.phone,
-        mr.address,
-        mr.blood_type,
-        mr.allergies,
-        mr.diagnosis,
-        mr.medications,
-        mr.emergency_contact_name,
-        mr.emergency_contact_phone,
-        mr.created_at,
-        mr.updated_at
-      FROM medical_records mr
-      JOIN users u ON u.id = mr.user_id
-      ORDER BY mr.user_id ASC`
-    );
-
-    res.json(rows);
-  } catch (error) {
-    console.error('GET /medical-records failed:', error.message);
-    res.status(500).json({ error: 'Failed to fetch medical records' });
-  }
-});
-
 app.get('/medical-records/:userId', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'userId must be a positive integer' });
+    }
+    if (!ensureSelfAccess(req, res, userId)) {
+      return;
     }
 
     const [rows] = await pool.query(
@@ -573,6 +537,9 @@ app.put('/medical-records/:userId', async (req, res) => {
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'userId must be a positive integer' });
+    }
+    if (!ensureSelfAccess(req, res, userId)) {
+      return;
     }
 
     const [userRows] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
@@ -783,6 +750,9 @@ app.post('/appointments', async (req, res) => {
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'user_id must be a positive integer' });
     }
+    if (!ensureSelfAccess(req, res, userId)) {
+      return;
+    }
 
     if (!Number.isInteger(doctorId) || doctorId <= 0) {
       return res.status(400).json({ error: 'doctor_id must be a positive integer' });
@@ -919,6 +889,9 @@ app.get('/user/:userId/appointments', async (req, res) => {
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'userId must be a positive integer' });
     }
+    if (!ensureSelfAccess(req, res, userId)) {
+      return;
+    }
 
     const [appointments] = await pool.query(
       `SELECT
@@ -958,6 +931,11 @@ app.patch('/appointments/:appointmentId/cancel', async (req, res) => {
       return res.status(400).json({ error: 'appointmentId must be a positive integer' });
     }
 
+    const requestUserId = getRequestUserId(req);
+    if (!requestUserId) {
+      return res.status(401).json({ error: 'Authentication header required' });
+    }
+
     // Fetch appointment to verify it exists and get details
     const [appointmentRows] = await pool.query(
       `SELECT id, user_id, doctor_id, appointment_date, appointment_time, status
@@ -972,6 +950,9 @@ app.patch('/appointments/:appointmentId/cancel', async (req, res) => {
     }
 
     const appointment = appointmentRows[0];
+    if (appointment.user_id !== requestUserId) {
+      return res.status(403).json({ error: 'You can only cancel your own appointments' });
+    }
 
     // Prevent cancelling already cancelled appointments
     if (appointment.status === 'cancelled') {
