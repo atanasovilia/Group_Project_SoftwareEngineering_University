@@ -53,36 +53,17 @@ const PORT = Number(process.env.PORT || 3000);
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 const VALID_GENDERS = new Set(['male', 'female', 'other', 'prefer_not_to_say']);
 const VALID_BLOOD_TYPES = new Set(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const NAME_PATTERN = /^[A-Za-z][A-Za-z' -]{1,118}[A-Za-z]$/;
 const PHONE_PATTERN = /^\+?[0-9() -]{7,25}$/;
 const ADDRESS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s,.'#\/-]{4,254}$/;
 const MEDICAL_TEXT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s,.'()\/+-]{1,998}[A-Za-z0-9.)]$/;
 
-function toMonday(dateInput) {
-  const base = dateInput ? new Date(`${dateInput}T00:00:00`) : new Date();
-  if (Number.isNaN(base.getTime())) {
-    return null;
-  }
-
-  const day = base.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(base);
-  monday.setDate(base.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-}
-
 function formatDateOnly(date) {
   return date.toISOString().slice(0, 10);
 }
 
-function formatWeekdayDate(date) {
-  return {
-    iso_date: formatDateOnly(date),
-    label: WEEKDAY_LABELS[(date.getDay() + 6) % 7],
-    day_of_week: date.getDay() === 0 ? 7 : date.getDay(),
-  };
+function toSqlTimeValue(timeValue) {
+  return /^\d{2}:\d{2}$/.test(String(timeValue)) ? `${timeValue}:00` : String(timeValue);
 }
 
 function parseDateInput(dateInput) {
@@ -218,7 +199,6 @@ app.get('/', (req, res) => {
       doctors: 'GET /doctors',
       calendar_month: 'GET /calendar/month?doctorId=1&month=YYYY-MM-01',
       calendar_day: 'GET /calendar/day?doctorId=1&date=YYYY-MM-DD',
-      calendar_weekly: 'GET /calendar/weekly?weekStart=YYYY-MM-DD',
       users: 'GET /users',
       register: 'POST /register',
       login: 'POST /login',
@@ -415,140 +395,6 @@ app.get('/calendar/day', async (req, res) => {
   } catch (error) {
     console.error('GET /calendar/day failed:', error.message);
     return res.status(500).json({ error: 'Failed to fetch daily slots' });
-  }
-});
-
-app.get('/calendar/weekly', async (req, res) => {
-  try {
-    const weekStart = toMonday(req.query.weekStart);
-    if (!weekStart) {
-      return res.status(400).json({ error: 'weekStart must be a valid date in YYYY-MM-DD format' });
-    }
-
-    let selectedDoctorId = null;
-    if (req.query.doctorId != null && req.query.doctorId !== '') {
-      selectedDoctorId = Number(req.query.doctorId);
-      if (!Number.isInteger(selectedDoctorId) || selectedDoctorId <= 0) {
-        return res.status(400).json({ error: 'doctorId must be a positive integer' });
-      }
-    }
-
-    const weekDays = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + index);
-      return formatWeekdayDate(date);
-    });
-
-    const doctorParams = [];
-    let doctorWhereClause = `WHERE status = 'active'`;
-    if (selectedDoctorId) {
-      doctorWhereClause += ' AND id = ?';
-      doctorParams.push(selectedDoctorId);
-    }
-
-    const [doctorRows] = await pool.query(
-      `SELECT id, full_name, specialty, room_number
-       FROM doctors
-       ${doctorWhereClause}
-       ORDER BY full_name ASC`,
-      doctorParams
-    );
-
-    if (selectedDoctorId && doctorRows.length === 0) {
-      return res.status(404).json({ error: 'Doctor not found' });
-    }
-
-    const slotParams = [];
-    let slotDoctorFilter = '';
-    if (selectedDoctorId) {
-      slotDoctorFilter = ' AND s.doctor_id = ?';
-      slotParams.push(selectedDoctorId);
-    }
-
-    const [slotRows] = await pool.query(
-      `SELECT
-         s.doctor_id,
-         s.day_of_week,
-         TIME_FORMAT(s.start_time, '%H:%i') AS start_time,
-         TIME_FORMAT(s.end_time, '%H:%i') AS end_time,
-         s.slot_capacity
-       FROM doctor_availability_slots s
-       JOIN doctors d ON d.id = s.doctor_id
-       WHERE d.status = 'active'
-         AND s.is_active = TRUE
-         ${slotDoctorFilter}
-       ORDER BY s.doctor_id, s.day_of_week, s.start_time`
-      ,
-      slotParams
-    );
-
-    const slotsByDoctorDay = new Map();
-    for (const slot of slotRows) {
-      const key = `${slot.doctor_id}-${slot.day_of_week}`;
-      const existing = slotsByDoctorDay.get(key) || [];
-      existing.push({
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        slot_capacity: slot.slot_capacity,
-      });
-      slotsByDoctorDay.set(key, existing);
-    }
-
-    // Get booked appointments for the week
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    
-    const bookedParams = [];
-    let bookedDoctorFilter = '';
-    if (selectedDoctorId) {
-      bookedDoctorFilter = ' AND doctor_id = ?';
-      bookedParams.push(selectedDoctorId);
-    }
-
-    const [bookedAppointments] = await pool.query(
-      `SELECT doctor_id, appointment_date, appointment_time
-       FROM appointments
-       WHERE appointment_date >= ?
-         AND appointment_date <= ?
-         AND status = 'confirmed'
-         ${bookedDoctorFilter}`,
-      [formatDateOnly(weekStart), formatDateOnly(weekEnd), ...bookedParams]
-    );
-
-    // Build a set of booked slot keys
-    const bookedSlotKeys = new Set();
-    for (const appointment of bookedAppointments) {
-      bookedSlotKeys.add(`${appointment.doctor_id}-${appointment.appointment_date}-${appointment.appointment_time}`);
-    }
-
-    const doctors = doctorRows.map((doctor) => {
-      const availability = weekDays.map((day) => {
-        const slots = slotsByDoctorDay.get(`${doctor.id}-${day.day_of_week}`) || [];
-        const totalSlots = slots.reduce((sum, slot) => sum + slot.slot_capacity, 0);
-
-        return {
-          ...day,
-          total_slots: totalSlots,
-          slots,
-        };
-      });
-
-      return {
-        ...doctor,
-        availability,
-      };
-    });
-
-    return res.json({
-      week_start: formatDateOnly(weekStart),
-      week_end: weekDays[6].iso_date,
-      selected_doctor_id: selectedDoctorId,
-      days: weekDays,
-      doctors,
-    });
-  } catch (error) {
-    console.error('GET /calendar/weekly failed:', error.message);
-    return res.status(500).json({ error: 'Failed to fetch weekly calendar' });
   }
 });
 
@@ -963,6 +809,8 @@ app.post('/appointments', async (req, res) => {
       return res.status(400).json({ error: 'Cannot book appointments in the past' });
     }
 
+    const sqlAppointmentTime = toSqlTimeValue(appointment_time);
+
     // Check if user exists
     const [userRows] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [userId]);
     if (userRows.length === 0) {
@@ -978,16 +826,42 @@ app.post('/appointments', async (req, res) => {
       return res.status(404).json({ error: `Doctor with ID ${doctorId} not found or is inactive` });
     }
 
-    // Check if appointment slot already booked (confirmed or not cancelled)
+    // Reuse cancelled rows because the unique slot constraint reserves doctor/date/time.
     const [existingAppointment] = await pool.query(
-      `SELECT id, status FROM appointments
-       WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? AND status = 'confirmed'
+      `SELECT id, user_id, status, created_at
+       FROM appointments
+       WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ?
        LIMIT 1`,
-      [doctorId, appointment_date, appointment_time]
+      [doctorId, appointment_date, sqlAppointmentTime]
     );
     if (existingAppointment.length > 0) {
-      return res.status(409).json({ 
-        error: 'This appointment slot is no longer available. Please select another time.' 
+      const slotRecord = existingAppointment[0];
+      if (slotRecord.status === 'confirmed') {
+        return res.status(409).json({
+          error: 'This appointment slot is no longer available. Please select another time.'
+        });
+      }
+
+      const [updateResult] = await pool.query(
+        `UPDATE appointments
+         SET user_id = ?, status = 'confirmed'
+         WHERE id = ?`,
+        [userId, slotRecord.id]
+      );
+
+      if (!updateResult || updateResult.affectedRows === 0) {
+        throw new Error('Failed to restore cancelled appointment slot');
+      }
+
+      return res.status(200).json({
+        id: slotRecord.id,
+        user_id: userId,
+        doctor_id: doctorId,
+        appointment_date,
+        appointment_time,
+        status: 'confirmed',
+        created_at: slotRecord.created_at,
+        message: 'Appointment successfully booked',
       });
     }
 
@@ -995,7 +869,7 @@ app.post('/appointments', async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO appointments (user_id, doctor_id, appointment_date, appointment_time, status)
        VALUES (?, ?, ?, ?, 'confirmed')`,
-      [userId, doctorId, appointment_date, appointment_time]
+      [userId, doctorId, appointment_date, sqlAppointmentTime]
     );
 
     if (!result || !result.insertId) {

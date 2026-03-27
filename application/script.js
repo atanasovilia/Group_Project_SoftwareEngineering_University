@@ -1,5 +1,50 @@
 const API_BASE_URL = window.location.origin;
 
+async function apiRequest(path, options = {}) {
+  const {
+    networkErrorMessage = 'Could not connect to server.',
+    defaultErrorMessage,
+    ...fetchOptions
+  } = options;
+  const requestUrl = /^https?:\/\//i.test(path) ? path : `${API_BASE_URL}${path}`;
+
+  let response;
+  try {
+    response = await fetch(requestUrl, fetchOptions);
+  } catch (error) {
+    throw new Error(networkErrorMessage);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  let data = null;
+
+  try {
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = text || null;
+    }
+  } catch (error) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      data && typeof data === 'object' ? data.error || data.message || defaultErrorMessage : defaultErrorMessage;
+    const requestError = new Error(message || `Request failed with status ${response.status}`);
+    requestError.status = response.status;
+    requestError.data = data;
+    requestError.response = response;
+    throw requestError;
+  }
+
+  return {
+    response,
+    data,
+  };
+}
+
 function getAuthUser() {
   try {
     const rawUser = localStorage.getItem('authUser');
@@ -10,16 +55,7 @@ function getAuthUser() {
 }
 
 function formatIsoDate(date) {
-	return date.toISOString().slice(0, 10);
-}
-
-function getMonday(date = new Date()) {
-	const result = new Date(date);
-	const day = result.getDay();
-	const diff = day === 0 ? -6 : 1 - day;
-	result.setDate(result.getDate() + diff);
-	result.setHours(0, 0, 0, 0);
-	return result;
+  return date.toISOString().slice(0, 10);
 }
 
 function renderStatusMessage(element, text, type = '') {
@@ -29,21 +65,6 @@ function renderStatusMessage(element, text, type = '') {
 
 	element.textContent = text;
 	element.className = `status${type ? ` ${type}` : ''}`;
-}
-
-function getHeatClass(totalSlots) {
-	if (totalSlots >= 8) return 'ok';
-	if (totalSlots >= 5) return 'mid';
-	if (totalSlots >= 1) return 'low';
-	return 'none';
-}
-
-function formatSlotSummary(slots) {
-	if (!slots || slots.length === 0) {
-		return 'No availability';
-	}
-
-	return slots.map((slot) => `${slot.start_time}-${slot.end_time}`).join(', ');
 }
 
 function logoutUser() {
@@ -176,7 +197,7 @@ function setupAuthPage() {
     const generatedName = email.split('@')[0] || 'user';
 
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
+      await apiRequest('/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -184,14 +205,8 @@ function setupAuthPage() {
           email,
           password,
         }),
+        defaultErrorMessage: 'Registration failed.',
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        showAuthMessage(data.error || 'Registration failed.', true);
-        return;
-      }
 
       showAuthMessage('Registration successful. You can now log in.');
       registerForm.reset();
@@ -218,18 +233,12 @@ function setupAuthPage() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
+      const { data } = await apiRequest('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        defaultErrorMessage: 'Login failed.',
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        showAuthMessage(data.error || 'Login failed.', true);
-        return;
-      }
 
       localStorage.setItem('authUser', JSON.stringify(data.user));
       showAuthMessage('Login successful. Redirecting...');
@@ -245,18 +254,6 @@ function setupAuthPage() {
 function setupNavigation() {
   document.querySelectorAll('.logout-btn').forEach((button) => {
     button.addEventListener('click', logoutUser);
-  });
-
-  document.getElementById('goAppointments')?.addEventListener('click', () => {
-    window.location.href = 'appointments.html';
-  });
-
-  document.getElementById('goCalendar')?.addEventListener('click', () => {
-    window.location.href = 'doctor.html';
-  });
-
-  document.getElementById('goRecords')?.addEventListener('click', () => {
-    window.location.href = 'records.html';
   });
 
   const sideMenu = document.getElementById('sideMenu');
@@ -431,10 +428,21 @@ function setupMedicalRecordsPage() {
     saveButton.disabled = true;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/medical-records/${authUser.id}`);
-      const data = await response.json();
-
-      if (response.status === 404) {
+      const { data } = await apiRequest(`/medical-records/${authUser.id}`, {
+        defaultErrorMessage: 'Failed to fetch medical record',
+        networkErrorMessage: 'Unable to load medical record.',
+      });
+      currentRecord = data;
+      renderMedicalRecord(data);
+      populateMedicalRecordForm(data);
+      setText(
+        'recordFormMeta',
+        'Your existing medical record is loaded below. Edit any field and save to update the database.'
+      );
+      showStatus('recordStatus', 'Medical record loaded from TiDB.', 'ok');
+      hideRecordForm();
+    } catch (error) {
+      if (error.status === 404) {
         currentRecord = null;
         clearMedicalRecord();
         populateMedicalRecordForm(null);
@@ -453,36 +461,21 @@ function setupMedicalRecordsPage() {
           'No record was found for this account. Complete the form below to create your first medical record.'
         );
         hideRecordForm();
-        return;
+      } else {
+        currentRecord = null;
+        clearMedicalRecord();
+        populateMedicalRecordForm(null);
+        showStatus(
+          'recordStatus',
+          error.message || 'Unable to load medical record.',
+          'err'
+        );
+        setText(
+          'recordFormMeta',
+          'The current record could not be loaded. You can still try entering your information and saving it.'
+        );
+        hideRecordForm();
       }
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch medical record');
-      }
-
-      currentRecord = data;
-      renderMedicalRecord(data);
-      populateMedicalRecordForm(data);
-      setText(
-        'recordFormMeta',
-        'Your existing medical record is loaded below. Edit any field and save to update the database.'
-      );
-      showStatus('recordStatus', 'Medical record loaded from TiDB.', 'ok');
-      hideRecordForm();
-    } catch (error) {
-      currentRecord = null;
-      clearMedicalRecord();
-      populateMedicalRecordForm(null);
-      showStatus(
-        'recordStatus',
-        error.message || 'Unable to load medical record.',
-        'err'
-      );
-      setText(
-        'recordFormMeta',
-        'The current record could not be loaded. You can still try entering your information and saving it.'
-      );
-      hideRecordForm();
     } finally {
       refreshButton.disabled = false;
       saveButton.disabled = false;
@@ -504,16 +497,13 @@ function setupMedicalRecordsPage() {
     showStatus('recordStatus', 'Saving medical record...', null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/medical-records/${authUser.id}`, {
+      const { data } = await apiRequest(`/medical-records/${authUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        defaultErrorMessage: 'Failed to save medical record',
+        networkErrorMessage: 'Unable to save medical record.',
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save medical record');
-      }
 
       currentRecord = data.record || null;
       if (currentRecord) {
@@ -606,13 +596,56 @@ function setupDoctorBookingDashboard() {
 		return;
 	}
 
+	const MONTH_CACHE_TTL_MS = 30 * 1000;
 	const state = {
 		doctors: [],
 		selectedDoctorId: '',
 		selectedDate: '',
 		selectedSlot: null,
 		currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+		currentMonthData: null,
+		monthCache: new Map(),
+		pendingMonthRequests: new Map(),
+		monthLoadRequestId: 0,
 	};
+
+	function getMonthCacheKey(doctorId, monthValue) {
+		return `${String(doctorId)}:${monthValue}`;
+	}
+
+	function getCachedMonthData(cacheKey) {
+		const cachedEntry = state.monthCache.get(cacheKey);
+		if (!cachedEntry) {
+			return null;
+		}
+
+		if (Date.now() - cachedEntry.cachedAt > MONTH_CACHE_TTL_MS) {
+			state.monthCache.delete(cacheKey);
+			return null;
+		}
+
+		return cachedEntry.data;
+	}
+
+	function cacheMonthData(cacheKey, data) {
+		state.monthCache.set(cacheKey, {
+			data,
+			cachedAt: Date.now(),
+		});
+	}
+
+	function invalidateMonthCache(doctorId) {
+		if (!doctorId) {
+			return;
+		}
+
+		const cacheKeyPrefix = `${String(doctorId)}:`;
+		for (const cacheKey of Array.from(state.monthCache.keys())) {
+			if (cacheKey.startsWith(cacheKeyPrefix)) {
+				state.monthCache.delete(cacheKey);
+			}
+		}
+	}
 
 	function openMenu() {
 		sideMenu?.classList.add('open');
@@ -630,6 +663,38 @@ function setupDoctorBookingDashboard() {
 
 	function getSelectedDoctor() {
 		return state.doctors.find((doctor) => String(doctor.id) === String(state.selectedDoctorId)) || null;
+	}
+
+	async function fetchMonthData(doctorId, monthValue) {
+		const cacheKey = getMonthCacheKey(doctorId, monthValue);
+		const cachedData = getCachedMonthData(cacheKey);
+		if (cachedData) {
+			return cachedData;
+		}
+
+		const pendingRequest = state.pendingMonthRequests.get(cacheKey);
+		if (pendingRequest) {
+			return pendingRequest;
+		}
+
+		const monthRequest = (async () => {
+			const { data } = await apiRequest(
+				`/calendar/month?doctorId=${encodeURIComponent(doctorId)}&month=${encodeURIComponent(monthValue)}`,
+				{
+					defaultErrorMessage: 'Could not load monthly calendar.',
+				}
+			);
+			cacheMonthData(cacheKey, data);
+			return data;
+		})();
+
+		state.pendingMonthRequests.set(cacheKey, monthRequest);
+
+		try {
+			return await monthRequest;
+		} finally {
+			state.pendingMonthRequests.delete(cacheKey);
+		}
 	}
 
 	function updateSummary() {
@@ -673,29 +738,18 @@ function setupDoctorBookingDashboard() {
 
 			console.log('Submitting booking:', payload);
 
-			const response = await fetch(`${API_BASE_URL}/appointments`, {
+			const { data } = await apiRequest('/appointments', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify(payload),
+				defaultErrorMessage: 'Could not book appointment.',
+				networkErrorMessage: 'Network error: Could not connect to the booking service.',
 			});
-
-			if (!response.ok) {
-				let errorMessage = 'Could not book appointment.';
-				try {
-					const data = await response.json();
-					errorMessage = data.error || data.message || errorMessage;
-				} catch (parseError) {
-					console.error('Failed to parse error response:', parseError);
-				}
-				renderStatusMessage(statusMsg, errorMessage, 'err');
-				updateBookButtonState();
-				return;
-			}
-
-			const data = await response.json();
 			console.log('Booking successful:', data);
+			invalidateMonthCache(state.selectedDoctorId);
+			state.currentMonthData = null;
 
 			// Show success confirmation
 			renderStatusMessage(
@@ -718,7 +772,20 @@ function setupDoctorBookingDashboard() {
 			}, 2000);
 		} catch (error) {
 			console.error('Booking submission error:', error);
-			renderStatusMessage(statusMsg, 'Network error: Could not connect to the booking service.', 'err');
+			if (error.status === 409) {
+				state.selectedSlot = null;
+				updateSummary();
+				invalidateMonthCache(state.selectedDoctorId);
+				state.currentMonthData = null;
+				await loadMonth();
+				await loadDaySlots();
+			}
+
+			renderStatusMessage(
+				statusMsg,
+				error.message || 'Network error: Could not connect to the booking service.',
+				'err'
+			);
 			updateBookButtonState();
 		}
 	}
@@ -746,13 +813,9 @@ function setupDoctorBookingDashboard() {
 
 	async function loadDoctors() {
 		try {
-			const response = await fetch(`${API_BASE_URL}/doctors`);
-			const doctors = await response.json();
-
-			if (!response.ok) {
-				renderStatusMessage(statusMsg, doctors.error || 'Could not load doctors.', 'err');
-				return false;
-			}
+			const { data: doctors } = await apiRequest('/doctors', {
+				defaultErrorMessage: 'Could not load doctors.',
+			});
 
 			state.doctors = doctors;
 			doctorSelect.innerHTML = '<option value="">Choose a doctor</option>';
@@ -794,7 +857,7 @@ function setupDoctorBookingDashboard() {
 					state.selectedDate = day.iso_date;
 					state.selectedSlot = null;
 					updateSummary();
-					loadMonth();
+					renderMonth(state.currentMonthData?.days || []);
 					loadDaySlots();
 				});
 			}
@@ -828,6 +891,7 @@ function setupDoctorBookingDashboard() {
 
 	async function loadMonth() {
 		if (!state.selectedDoctorId) {
+			state.currentMonthData = null;
 			monthGrid.innerHTML = '<div class="emptyState">Choose a doctor to view availability.</div>';
 			timeSlotGrid.innerHTML = '<div class="emptyState">Choose a doctor first.</div>';
 			monthLabel.textContent = 'Select a doctor';
@@ -835,19 +899,21 @@ function setupDoctorBookingDashboard() {
 			return;
 		}
 
+		const doctorId = state.selectedDoctorId;
 		const monthValue = formatIsoDate(state.currentMonth);
+		const loadRequestId = ++state.monthLoadRequestId;
 
 		try {
-			const response = await fetch(
-				`${API_BASE_URL}/calendar/month?doctorId=${encodeURIComponent(state.selectedDoctorId)}&month=${encodeURIComponent(monthValue)}`
-			);
-			const data = await response.json();
-
-			if (!response.ok) {
-				renderStatusMessage(statusMsg, data.error || 'Could not load monthly calendar.', 'err');
+			const data = await fetchMonthData(doctorId, monthValue);
+			if (
+				loadRequestId !== state.monthLoadRequestId ||
+				doctorId !== state.selectedDoctorId ||
+				monthValue !== formatIsoDate(state.currentMonth)
+			) {
 				return;
 			}
 
+			state.currentMonthData = data;
 			monthLabel.textContent = data.month_label;
 			renderMonth(data.days);
 			renderStatusMessage(statusMsg, `Showing ${data.doctor.full_name}'s availability.`, 'ok');
@@ -867,7 +933,11 @@ function setupDoctorBookingDashboard() {
 				}
 			}
 		} catch (error) {
-			renderStatusMessage(statusMsg, 'Could not load monthly calendar.', 'err');
+			if (loadRequestId !== state.monthLoadRequestId) {
+				return;
+			}
+
+			renderStatusMessage(statusMsg, error.message || 'Could not load monthly calendar.', 'err');
 		}
 	}
 
@@ -878,15 +948,12 @@ function setupDoctorBookingDashboard() {
 		}
 
 		try {
-			const response = await fetch(
-				`${API_BASE_URL}/calendar/day?doctorId=${encodeURIComponent(state.selectedDoctorId)}&date=${encodeURIComponent(state.selectedDate)}`
+			const { data } = await apiRequest(
+				`/calendar/day?doctorId=${encodeURIComponent(state.selectedDoctorId)}&date=${encodeURIComponent(state.selectedDate)}`,
+				{
+					defaultErrorMessage: 'Could not load daily slots.',
+				}
 			);
-			const data = await response.json();
-
-			if (!response.ok) {
-				renderStatusMessage(statusMsg, data.error || 'Could not load daily slots.', 'err');
-				return;
-			}
 
 			renderTimeSlots(data.slots);
 			updateSummary();
@@ -949,148 +1016,8 @@ function setupDoctorBookingDashboard() {
 	}, 30000);
 }
 
-function setupCalendarPage() {
-	const calendarGrid = document.getElementById('calendarGrid');
-	const doctorSelect = document.getElementById('doctorSelect');
-	const weekStartInput = document.getElementById('weekStart');
-	const refreshBtn = document.getElementById('refreshBtn');
-	const statusMsg = document.getElementById('statusMsg');
-	const hamburger = document.getElementById('hamburger');
-	const sideMenu = document.getElementById('sideMenu');
-	const closeMenuBtn = document.getElementById('closeMenuBtn');
-	const menuOverlay = document.getElementById('menuOverlay');
-
-	if (!calendarGrid || !weekStartInput || !refreshBtn || !statusMsg) {
-		return;
-	}
-
-	const initialMonday = getMonday();
-	weekStartInput.value = formatIsoDate(initialMonday);
-
-	function openMenu() {
-		sideMenu?.classList.add('open');
-		menuOverlay?.classList.add('show');
-	}
-
-	function closeMenu() {
-		sideMenu?.classList.remove('open');
-		menuOverlay?.classList.remove('show');
-	}
-
-	hamburger?.addEventListener('click', openMenu);
-	closeMenuBtn?.addEventListener('click', closeMenu);
-	menuOverlay?.addEventListener('click', closeMenu);
-
-	async function loadDoctorOptions() {
-		if (!doctorSelect) {
-			return true;
-		}
-
-		try {
-			const response = await fetch(`${API_BASE_URL}/doctors`);
-			const doctors = await response.json();
-
-			if (!response.ok) {
-				renderStatusMessage(statusMsg, 'Could not load doctor filter list.', 'err');
-				return;
-			}
-
-			doctorSelect.innerHTML = '<option value="">All doctors</option>';
-
-			doctors.forEach((doctor) => {
-				const option = document.createElement('option');
-				option.value = String(doctor.id);
-				option.textContent = `${doctor.full_name} - ${doctor.specialty}`;
-				doctorSelect.appendChild(option);
-			});
-		} catch (error) {
-			renderStatusMessage(statusMsg, 'Could not load doctor filter list.', 'err');
-		}
-	}
-
-	function renderCalendar(data) {
-		calendarGrid.style.setProperty('--cols', String((data.days?.length || 0) + 1));
-		calendarGrid.innerHTML = '';
-
-		const corner = document.createElement('div');
-		corner.className = 'corner';
-		corner.textContent = `Doctors (${data.doctors.length})`;
-		calendarGrid.appendChild(corner);
-
-		data.days.forEach((day) => {
-			const header = document.createElement('div');
-			header.className = 'colHeader';
-			header.innerHTML = `<div>${day.label}</div><div class="small">${day.iso_date}</div>`;
-			calendarGrid.appendChild(header);
-		});
-
-		data.doctors.forEach((doctor) => {
-			const rowHeader = document.createElement('div');
-			rowHeader.className = 'rowHeader';
-			rowHeader.innerHTML = `
-				<div class="docName">${doctor.full_name}</div>
-				<div class="docMeta">${doctor.specialty} · Room ${doctor.room_number || 'TBC'}</div>
-			`;
-			calendarGrid.appendChild(rowHeader);
-
-			doctor.availability.forEach((day) => {
-				const cell = document.createElement('div');
-				const heatClass = getHeatClass(day.total_slots);
-				cell.className = `dayCell heat ${heatClass}`;
-				cell.innerHTML = `
-					<div class="count">${day.total_slots} available slot${day.total_slots === 1 ? '' : 's'}</div>
-					<div class="times">${formatSlotSummary(day.slots)}</div>
-				`;
-				calendarGrid.appendChild(cell);
-			});
-		});
-	}
-
-	async function loadCalendar() {
-		const weekStart = weekStartInput.value;
-		const doctorId = doctorSelect?.value || '';
-		if (!weekStart) {
-			renderStatusMessage(statusMsg, 'Choose a valid Monday date first.', 'err');
-			return;
-		}
-
-		renderStatusMessage(statusMsg, 'Loading weekly doctor availability...');
-
-		try {
-			const params = new URLSearchParams({ weekStart });
-			if (doctorId) {
-				params.set('doctorId', doctorId);
-			}
-
-			const response = await fetch(`${API_BASE_URL}/calendar/weekly?${params.toString()}`);
-			const data = await response.json();
-
-			if (!response.ok) {
-				renderStatusMessage(statusMsg, data.error || 'Failed to load calendar.', 'err');
-				return;
-			}
-
-			renderCalendar(data);
-			const doctorText = doctorSelect?.selectedOptions[0]?.textContent || 'All doctors';
-			renderStatusMessage(
-				statusMsg,
-				`Loaded ${doctorText} for ${data.week_start} to ${data.week_end}. Auto-refresh is on.`,
-				'ok'
-			);
-		} catch (error) {
-			renderStatusMessage(statusMsg, 'Could not connect to the calendar service.', 'err');
-		}
-	}
-
-	refreshBtn.addEventListener('click', loadCalendar);
-	doctorSelect?.addEventListener('change', loadCalendar);
-	weekStartInput.addEventListener('change', loadCalendar);
-	loadDoctorOptions().then(loadCalendar);
-	window.setInterval(loadCalendar, 30000);
-}
-
 setupAuthPage();
 setupNavigation();
 setupMedicalRecordsPage();
 setupDoctorBookingDashboard();
-setupCalendarPage();
+
