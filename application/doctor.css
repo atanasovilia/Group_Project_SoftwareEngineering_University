@@ -799,14 +799,25 @@ input[type="date"]:focus{
   margin:14px 0 16px;
   padding:12px 14px;
   border-radius:14px;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(255,255,255,.10);
-  color:var(--white);
+  border:1px solid rgba(127,193,255,.22);
+  background:rgba(234,242,251,.96);
+  color:#10233b;
   font-size:14px;
+  font-weight:700;
+  outline:none;
+  appearance:auto;
+  transition:border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.doctorSelectInput:focus{
+  border-color:rgba(127,193,255,.55);
+  box-shadow:0 0 0 3px rgba(47,128,237,.16);
+  background:#ffffff;
 }
 
 .doctorSelectInput option{
-  color:#142033;
+  background:#10233b;
+  color:#ffffff;
 }
 
 .doctorButtonList{

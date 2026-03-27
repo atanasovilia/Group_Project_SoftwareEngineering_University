@@ -403,11 +403,13 @@ app.get('/calendar/day', async (req, res) => {
 app.post('/register', async (req, res) => {
   try {
     // Extract fields from request body.
-    const { name, email, password } = req.body;
+    const { name, email, password, date_of_birth, phone } = req.body;
 
     // Basic required field validation.
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'name, email, and password are required' });
+    if (!name || !email || !password || !date_of_birth || !phone) {
+      return res.status(400).json({
+        error: 'name, email, password, date_of_birth, and phone are required',
+      });
     }
 
     // Enforce minimum password length.
@@ -415,17 +417,49 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'password must be at least 8 characters' });
     }
 
+    if (!isValidIsoDate(date_of_birth)) {
+      return res.status(400).json({
+        error: 'date_of_birth must be a real date in YYYY-MM-DD format',
+      });
+    }
+
+    const parsedDob = new Date(`${date_of_birth}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (parsedDob > today) {
+      return res.status(400).json({ error: 'date_of_birth cannot be in the future' });
+    }
+
+    const normalizedPhone = String(phone).trim();
+    if (!PHONE_PATTERN.test(normalizedPhone)) {
+      return res.status(400).json({
+        error: 'phone can only contain numbers, spaces, parentheses, hyphens, and an optional leading +',
+      });
+    }
+
     // Normalize email for consistent storage and duplicate checks.
     const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedName = String(name).trim();
     // Hash password before saving (never store plain text passwords).
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Insert new user record into database.
-    await pool.query('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)', [
-      String(name).trim(),
+    const [insertResult] = await pool.query('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)', [
+      normalizedName,
       normalizedEmail,
       hashedPassword,
     ]);
+
+    try {
+      await pool.query(
+        `INSERT INTO medical_records (user_id, date_of_birth, phone)
+         VALUES (?, ?, ?)`,
+        [insertResult.insertId, date_of_birth, normalizedPhone]
+      );
+    } catch (recordError) {
+      await pool.query('DELETE FROM users WHERE id = ?', [insertResult.insertId]);
+      throw recordError;
+    }
 
     // Successful creation response.
     res.status(201).json({ message: 'User registered successfully' });

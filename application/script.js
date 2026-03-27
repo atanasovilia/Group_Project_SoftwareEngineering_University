@@ -130,6 +130,25 @@ function showAuthMessage(text, isError = false) {
   authMsg.classList.add(isError ? 'err' : 'ok');
 }
 
+function isValidRegistrationPhone(phone) {
+  return /^\+?[0-9() -]{7,25}$/.test(String(phone || '').trim());
+}
+
+function isValidPastOrTodayDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) {
+    return false;
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return parsed <= today && parsed.toISOString().slice(0, 10) === value;
+}
+
 function showStatus(elementId, text, type) {
   const element = document.getElementById(elementId);
   if (!element) {
@@ -187,10 +206,30 @@ function setupAuthPage() {
     event.preventDefault();
 
     const email = document.getElementById('regEmail')?.value?.trim();
+    const dateOfBirth = document.getElementById('regDob')?.value?.trim();
+    const phone = document.getElementById('regPhone')?.value?.trim();
     const password = document.getElementById('regPass')?.value;
 
-    if (!email || !password) {
-      showAuthMessage('Please enter email and password.', true);
+    if (!email || !dateOfBirth || !phone || !password) {
+      showAuthMessage('Please complete email, date of birth, phone number, and password.', true);
+      return;
+    }
+
+    if (!isValidPastOrTodayDate(dateOfBirth)) {
+      showAuthMessage('Please enter a valid date of birth that is not in the future.', true);
+      document.getElementById('regDob')?.focus();
+      return;
+    }
+
+    if (!isValidRegistrationPhone(phone)) {
+      showAuthMessage('Please enter a valid phone number.', true);
+      document.getElementById('regPhone')?.focus();
+      return;
+    }
+
+    if (password.length < 8) {
+      showAuthMessage('Password must be at least 8 characters long.', true);
+      document.getElementById('regPass')?.focus();
       return;
     }
 
@@ -203,6 +242,8 @@ function setupAuthPage() {
         body: JSON.stringify({
           name: generatedName,
           email,
+          date_of_birth: dateOfBirth,
+          phone,
           password,
         }),
         defaultErrorMessage: 'Registration failed.',
@@ -217,7 +258,7 @@ function setupAuthPage() {
         loginEmailInput.value = email;
       }
     } catch (error) {
-      showAuthMessage('Could not connect to server.', true);
+      showAuthMessage(error.message || 'Could not connect to server.', true);
     }
   });
 
