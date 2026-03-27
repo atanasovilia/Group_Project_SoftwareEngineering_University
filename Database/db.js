@@ -76,4 +76,8 @@ async function query(sql, values) {
   return getPool().query(sql, values);
 }
 
-module.exports = { query };
+async function getConnection() {
+  return getPool().getConnection();
+}
+
+module.exports = { query, getPool, getConnection };

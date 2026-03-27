@@ -53,13 +53,18 @@ const PORT = Number(process.env.PORT || 3000);
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 const VALID_GENDERS = new Set(['male', 'female', 'other', 'prefer_not_to_say']);
 const VALID_BLOOD_TYPES = new Set(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_PATTERN = /^[A-Za-z][A-Za-z' -]{1,118}[A-Za-z]$/;
 const PHONE_PATTERN = /^\+?[0-9() -]{7,25}$/;
 const ADDRESS_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s,.'#\/-]{4,254}$/;
 const MEDICAL_TEXT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s,.'()\/+-]{1,998}[A-Za-z0-9.)]$/;
 
 function formatDateOnly(date) {
-  return date.toISOString().slice(0, 10);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 }
 
 function toSqlTimeValue(timeValue) {
@@ -71,8 +76,19 @@ function parseDateInput(dateInput) {
     return null;
   }
 
-  const parsed = new Date(`${dateInput}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
+  const match = String(dateInput).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, yearString, monthString, dayString] = match;
+  const parsed = new Date(Number(yearString), Number(monthString) - 1, Number(dayString));
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== Number(yearString) ||
+    parsed.getMonth() !== Number(monthString) - 1 ||
+    parsed.getDate() !== Number(dayString)
+  ) {
     return null;
   }
 
@@ -81,16 +97,7 @@ function parseDateInput(dateInput) {
 }
 
 function isValidIsoDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return false;
-  }
-
-  return parsed.toISOString().slice(0, 10) === value;
+  return parseDateInput(value) !== null;
 }
 
 function isNonEmptyString(value) {
@@ -121,6 +128,117 @@ function validatePatternField(value, pattern, fieldName, errorMessage) {
 
   if (!pattern.test(value)) {
     return errorMessage;
+  }
+
+  return null;
+}
+
+function countDigits(value) {
+  return String(value || '').replace(/\D/g, '').length;
+}
+
+function normalizeEmail(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function deriveNameFromEmail(email) {
+  const localPart = String(email || '').split('@')[0] || 'user';
+  const words = localPart
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+  return (words.join(' ') || 'User').slice(0, 100);
+}
+
+function validateEmailAddress(email) {
+  if (!isNonEmptyString(email)) {
+    return 'Email address is required.';
+  }
+
+  if (String(email).trim().length > 100) {
+    return 'Email address must be 100 characters or fewer.';
+  }
+
+  if (!EMAIL_PATTERN.test(String(email).trim())) {
+    return 'Please enter a valid email address.';
+  }
+
+  return null;
+}
+
+function validatePasswordForRegistration(password) {
+  if (typeof password !== 'string' || password.length === 0) {
+    return 'Password is required.';
+  }
+
+  if (/\s/.test(password)) {
+    return 'Password cannot contain spaces.';
+  }
+
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters long.';
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must include at least one uppercase letter.';
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return 'Password must include at least one lowercase letter.';
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return 'Password must include at least one number.';
+  }
+
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return 'Password must include at least one special character.';
+  }
+
+  return null;
+}
+
+function validatePhoneNumber(phone, { required = false, fieldLabel = 'Phone number' } = {}) {
+  if (phone == null || phone === '') {
+    return required ? `${fieldLabel} is required.` : null;
+  }
+
+  if (!isNonEmptyString(phone)) {
+    return `${fieldLabel} is required.`;
+  }
+
+  if (!PHONE_PATTERN.test(phone)) {
+    return `${fieldLabel} can only contain numbers, spaces, parentheses, hyphens, and an optional leading +.`;
+  }
+
+  const digitCount = countDigits(phone);
+  if (digitCount < 7 || digitCount > 15) {
+    return `${fieldLabel} must contain between 7 and 15 digits.`;
+  }
+
+  return null;
+}
+
+function validateDateOfBirth(value, { required = false, fieldLabel = 'Date of birth' } = {}) {
+  if (value == null || value === '') {
+    return required ? `${fieldLabel} is required.` : null;
+  }
+
+  if (!isNonEmptyString(value)) {
+    return `${fieldLabel} is required.`;
+  }
+
+  if (!isValidIsoDate(value)) {
+    return `${fieldLabel} must be a real date in YYYY-MM-DD format.`;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const parsedDate = new Date(`${value}T00:00:00`);
+  if (parsedDate > today) {
+    return `${fieldLabel} cannot be in the future.`;
   }
 
   return null;
@@ -260,6 +378,10 @@ app.get('/calendar/month', async (req, res) => {
     const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
     const calendarStart = getCalendarStart(monthDate);
     const calendarEnd = getCalendarEnd(monthDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    const todayIso = formatDateOnly(today);
 
     const [doctorRows] = await pool.query(
       `SELECT id, full_name, specialty, room_number
@@ -286,11 +408,30 @@ app.get('/calendar/month', async (req, res) => {
       [doctorId]
     );
 
+    const [bookedRows] = await pool.query(
+      `SELECT
+         DATE_FORMAT(appointment_date, '%Y-%m-%d') AS appointment_date,
+         TIME_FORMAT(appointment_time, '%H:%i') AS appointment_time
+       FROM appointments
+       WHERE doctor_id = ?
+         AND appointment_date BETWEEN ? AND ?
+         AND status = 'confirmed'`,
+      [doctorId, formatDateOnly(calendarStart), formatDateOnly(calendarEnd)]
+    );
+
     const slotMap = new Map();
     for (const row of slotRows) {
       const existing = slotMap.get(row.day_of_week) || [];
       existing.push(row);
       slotMap.set(row.day_of_week, existing);
+    }
+
+    const bookedSlotsByDate = new Map();
+    for (const row of bookedRows) {
+      const dateKey = row.appointment_date;
+      const existing = bookedSlotsByDate.get(dateKey) || new Set();
+      existing.add(row.appointment_time);
+      bookedSlotsByDate.set(dateKey, existing);
     }
 
     const days = [];
@@ -300,17 +441,30 @@ app.get('/calendar/month', async (req, res) => {
       cursor.setDate(cursor.getDate() + 1)
     ) {
       const currentDate = new Date(cursor);
+      currentDate.setHours(0, 0, 0, 0);
       const dayOfWeek = currentDate.getDay() === 0 ? 7 : currentDate.getDay();
       const ranges = slotMap.get(dayOfWeek) || [];
-      const totalSlots = ranges.reduce((sum, range) => sum + range.slot_capacity, 0);
+      const isoDate = formatDateOnly(currentDate);
+      const isPastDate = currentDate < today;
+      const bookedTimes = bookedSlotsByDate.get(isoDate) || new Set();
+      let availableSlots = [];
+
+      if (!isPastDate) {
+        availableSlots = buildTimeSlots(ranges).filter((slot) => !bookedTimes.has(slot.start_time));
+
+        if (isoDate === todayIso) {
+          availableSlots = availableSlots.filter((slot) => timeToMinutes(slot.start_time) > nowMinutes);
+        }
+      }
 
       days.push({
-        iso_date: formatDateOnly(currentDate),
+        iso_date: isoDate,
         day_number: currentDate.getDate(),
         day_of_week: dayOfWeek,
         is_current_month: currentDate.getMonth() === monthDate.getMonth(),
-        total_slots: totalSlots,
-        status: totalSlots > 0 ? 'available' : 'none',
+        total_slots: availableSlots.length,
+        is_past: isPastDate,
+        status: availableSlots.length > 0 ? 'available' : 'unavailable',
       });
     }
 
@@ -351,6 +505,9 @@ app.get('/calendar/day', async (req, res) => {
       return res.status(404).json({ error: 'Doctor not found' });
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isPastDate = selectedDate < today;
     const dayOfWeek = selectedDate.getDay() === 0 ? 7 : selectedDate.getDay();
     const [slotRows] = await pool.query(
       `SELECT
@@ -375,8 +532,16 @@ app.get('/calendar/day', async (req, res) => {
       [doctorId, formatDateOnly(selectedDate)]
     );
 
-    const bookedTimes = new Set(bookedSlots.map(row => row.appointment_time));
-    const slots = buildTimeSlots(slotRows).filter(slot => !bookedTimes.has(slot.start_time));
+    const bookedTimes = new Set(bookedSlots.map((row) => row.appointment_time));
+    let slots = isPastDate
+      ? []
+      : buildTimeSlots(slotRows).filter((slot) => !bookedTimes.has(slot.start_time));
+
+    if (formatDateOnly(selectedDate) === formatDateOnly(today)) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      slots = slots.filter((slot) => timeToMinutes(slot.start_time) > nowMinutes);
+    }
 
     return res.json({
       doctor: doctorRows[0],
@@ -394,42 +559,82 @@ app.get('/calendar/day', async (req, res) => {
 // POST /register
 // Creates a new user with hashed password.
 app.post('/register', async (req, res) => {
+  let connection;
+
   try {
-    // Extract fields from request body.
-    const { name, email, password } = req.body;
-
-    // Basic required field validation.
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'name, email, and password are required' });
+    const rawEmail = req.body?.email;
+    const rawPassword = req.body?.password;
+    const rawDateOfBirth = req.body?.date_of_birth ?? req.body?.dateOfBirth;
+    const rawPhone = req.body?.phone ?? req.body?.phoneNumber;
+    const normalizedEmail = normalizeEmail(rawEmail);
+    const normalizedDateOfBirth = typeof rawDateOfBirth === 'string' ? rawDateOfBirth.trim() : '';
+    const normalizedPhone = typeof rawPhone === 'string' ? rawPhone.trim() : '';
+    const emailError = validateEmailAddress(normalizedEmail);
+    if (emailError) {
+      return res.status(400).json({ error: emailError, code: 'INVALID_EMAIL', field: 'email' });
     }
 
-    // Enforce minimum password length.
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'password must be at least 8 characters' });
+    const passwordError = validatePasswordForRegistration(rawPassword);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError, code: 'INVALID_PASSWORD', field: 'password' });
     }
 
-    // Normalize email for consistent storage and duplicate checks.
-    const normalizedEmail = String(email).trim().toLowerCase();
-    // Hash password before saving (never store plain text passwords).
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const dateOfBirthError = validateDateOfBirth(normalizedDateOfBirth, { required: true });
+    if (dateOfBirthError) {
+      return res.status(400).json({
+        error: dateOfBirthError,
+        code: 'INVALID_DATE_OF_BIRTH',
+        field: 'date_of_birth',
+      });
+    }
 
-    // Insert new user record into database.
-    await pool.query('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)', [
-      String(name).trim(),
-      normalizedEmail,
-      hashedPassword,
-    ]);
+    const phoneError = validatePhoneNumber(normalizedPhone, { required: true });
+    if (phoneError) {
+      return res.status(400).json({ error: phoneError, code: 'INVALID_PHONE', field: 'phone' });
+    }
+
+    const resolvedName = normalizeOptionalString(req.body?.name) || deriveNameFromEmail(normalizedEmail);
+    const hashedPassword = await bcrypt.hash(rawPassword, SALT_ROUNDS);
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    const [insertResult] = await connection.query(
+      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
+      [resolvedName, normalizedEmail, hashedPassword]
+    );
+
+    await connection.query(
+      `INSERT INTO medical_records (user_id, date_of_birth, phone)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         date_of_birth = VALUES(date_of_birth),
+         phone = VALUES(phone),
+         updated_at = CURRENT_TIMESTAMP`,
+      [insertResult.insertId, normalizedDateOfBirth, normalizedPhone]
+    );
+
+    await connection.commit();
 
     // Successful creation response.
     res.status(201).json({ message: 'User registered successfully' });
   } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+
     // Handle duplicate email (unique constraint).
     if (error && error.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Email already exists' });
+      return res.status(409).json({
+        error: 'An account with this email address already exists.',
+        code: 'EMAIL_ALREADY_REGISTERED',
+        field: 'email',
+      });
     }
 
     console.error('POST /register failed:', error);
     res.status(500).json({ error: 'Failed to register user' });
+  } finally {
+    connection?.release();
   }
 });
 
@@ -438,13 +643,19 @@ app.post('/login', async (req, res) => {
     // Extract credentials from request body.
     const { email, password } = req.body;
 
-    // Validate required login inputs.
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email and password are required' });
+    const normalizedEmail = normalizeEmail(email);
+    const emailError = validateEmailAddress(normalizedEmail);
+    if (emailError) {
+      return res.status(400).json({ error: emailError, code: 'INVALID_EMAIL', field: 'email' });
     }
 
-    // Normalize email to match registration format.
-    const normalizedEmail = String(email).trim().toLowerCase();
+    if (typeof password !== 'string' || password.length === 0) {
+      return res.status(400).json({
+        error: 'Password is required.',
+        code: 'PASSWORD_REQUIRED',
+        field: 'password',
+      });
+    }
 
     // Retrieve matching user (including hashed password for verification).
     const [rows] = await pool.query(
@@ -454,7 +665,11 @@ app.post('/login', async (req, res) => {
 
     // If user does not exist, return auth failure.
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        error: 'No account was found for that email address.',
+        code: 'EMAIL_NOT_FOUND',
+        field: 'email',
+      });
     }
 
     // Use first matched user row.
@@ -464,7 +679,11 @@ app.post('/login', async (req, res) => {
 
     // Invalid password -> auth failure.
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({
+        error: 'Incorrect password.',
+        code: 'INCORRECT_PASSWORD',
+        field: 'password',
+      });
     }
 
     // Successful login response (excluding password hash).
@@ -591,40 +810,29 @@ app.put('/medical-records/:userId', async (req, res) => {
 
     if (Object.hasOwn(normalizedInput, 'date_of_birth')) {
       const dob = normalizedInput.date_of_birth;
-      if (dob == null) {
-        return res.status(400).json({ error: 'date_of_birth cannot be empty' });
-      }
+      const dobError = validateDateOfBirth(dob, {
+        required: true,
+        fieldLabel: 'date_of_birth',
+      });
+      if (dobError) {
+        if (dob == null) {
+          return res.status(400).json({ error: 'date_of_birth cannot be empty' });
+        }
 
-      if (!isValidIsoDate(dob)) {
-        return res.status(400).json({
-          error: 'date_of_birth must be a real date in YYYY-MM-DD format',
-        });
-      }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const parsedDob = new Date(`${dob}T00:00:00`);
-      if (parsedDob > today) {
-        return res.status(400).json({ error: 'date_of_birth cannot be in the future' });
+        return res.status(400).json({ error: dobError });
       }
     }
 
-    const phoneError = validatePatternField(
-      normalizedInput.phone,
-      PHONE_PATTERN,
-      'phone',
-      'phone can only contain numbers, spaces, parentheses, hyphens, and an optional leading +'
-    );
+    const phoneError = validatePhoneNumber(normalizedInput.phone, {
+      fieldLabel: 'phone',
+    });
     if (phoneError) {
       return res.status(400).json({ error: phoneError });
     }
 
-    const emergencyPhoneError = validatePatternField(
-      normalizedInput.emergency_contact_phone,
-      PHONE_PATTERN,
-      'emergency_contact_phone',
-      'emergency_contact_phone can only contain numbers, spaces, parentheses, hyphens, and an optional leading +'
-    );
+    const emergencyPhoneError = validatePhoneNumber(normalizedInput.emergency_contact_phone, {
+      fieldLabel: 'emergency_contact_phone',
+    });
     if (emergencyPhoneError) {
       return res.status(400).json({ error: emergencyPhoneError });
     }

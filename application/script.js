@@ -1,4 +1,6 @@
 const API_BASE_URL = window.location.origin;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[0-9() -]{7,25}$/;
 
 async function apiRequest(path, options = {}) {
   const {
@@ -63,7 +65,120 @@ function getAuthUser() {
 }
 
 function formatIsoDate(date) {
-  return date.toISOString().slice(0, 10);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function parseIsoDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, yearString, monthString, dayString] = match;
+  const date = new Date(Number(yearString), Number(monthString) - 1, Number(dayString));
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== Number(yearString) ||
+    date.getMonth() !== Number(monthString) - 1 ||
+    date.getDate() !== Number(dayString)
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function countDigits(value) {
+  return String(value || '').replace(/\D/g, '').length;
+}
+
+function validateEmail(value) {
+  if (!value) {
+    return 'Email address is required.';
+  }
+
+  if (value.length > 100) {
+    return 'Email address must be 100 characters or fewer.';
+  }
+
+  if (!EMAIL_PATTERN.test(value)) {
+    return 'Please enter a valid email address.';
+  }
+
+  return null;
+}
+
+function validateRegistrationPassword(value) {
+  if (!value) {
+    return 'Password is required.';
+  }
+
+  if (/\s/.test(value)) {
+    return 'Password cannot contain spaces.';
+  }
+
+  if (value.length < 8) {
+    return 'Password must be at least 8 characters long.';
+  }
+
+  if (!/[A-Z]/.test(value)) {
+    return 'Password must include at least one uppercase letter.';
+  }
+
+  if (!/[a-z]/.test(value)) {
+    return 'Password must include at least one lowercase letter.';
+  }
+
+  if (!/[0-9]/.test(value)) {
+    return 'Password must include at least one number.';
+  }
+
+  if (!/[^A-Za-z0-9]/.test(value)) {
+    return 'Password must include at least one special character.';
+  }
+
+  return null;
+}
+
+function validateDateOfBirth(value) {
+  if (!value) {
+    return 'Date of birth is required.';
+  }
+
+  const date = parseIsoDate(value);
+  if (!date) {
+    return 'Date of birth must be a real date in YYYY-MM-DD format.';
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (date > today) {
+    return 'Date of birth cannot be in the future.';
+  }
+
+  return null;
+}
+
+function validatePhoneNumber(value, fieldLabel = 'Phone number') {
+  if (!value) {
+    return `${fieldLabel} is required.`;
+  }
+
+  if (!PHONE_PATTERN.test(value)) {
+    return `${fieldLabel} can only contain numbers, spaces, parentheses, hyphens, and an optional leading +.`;
+  }
+
+  const digitCount = countDigits(value);
+  if (digitCount < 7 || digitCount > 15) {
+    return `${fieldLabel} must contain between 7 and 15 digits.`;
+  }
+
+  return null;
 }
 
 function renderStatusMessage(element, text, type = '') {
@@ -100,8 +215,11 @@ function formatDate(value, includeTime = false) {
     return '-';
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date =
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? parseIsoDate(value)
+      : new Date(value);
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
     return '-';
   }
 
@@ -155,9 +273,14 @@ function setupAuthPage() {
   const tabs = document.querySelectorAll('.tab');
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
+  const registerDobInput = document.getElementById('regDob');
 
   if (!tabs.length || !loginForm || !registerForm) {
     return;
+  }
+
+  if (registerDobInput) {
+    registerDobInput.max = formatIsoDate(new Date());
   }
 
   function switchTab(tabName) {
@@ -199,8 +322,13 @@ function setupAuthPage() {
     const phoneNumber = document.getElementById('regPhone')?.value?.trim();
     const password = document.getElementById('regPass')?.value;
 
-    if (!email || !dateOfBirth || !phoneNumber || !password) {
-      showAuthMessage('Please complete all register fields.', true);
+    const registerValidationError =
+      validateEmail(email) ||
+      validateDateOfBirth(dateOfBirth) ||
+      validatePhoneNumber(phoneNumber) ||
+      validateRegistrationPassword(password);
+    if (registerValidationError) {
+      showAuthMessage(registerValidationError, true);
       return;
     }
 
@@ -213,6 +341,8 @@ function setupAuthPage() {
         body: JSON.stringify({
           name: generatedName,
           email,
+          date_of_birth: dateOfBirth,
+          phone: phoneNumber,
           password,
         }),
         defaultErrorMessage: 'Registration failed.',
@@ -227,7 +357,7 @@ function setupAuthPage() {
         loginEmailInput.value = email;
       }
     } catch (error) {
-      showAuthMessage('Could not connect to server.', true);
+      showAuthMessage(error.message || 'Registration failed.', true);
     }
   });
 
@@ -237,8 +367,11 @@ function setupAuthPage() {
     const email = document.getElementById('loginEmail')?.value?.trim();
     const password = document.getElementById('loginPass')?.value;
 
-    if (!email || !password) {
-      showAuthMessage('Please enter email and password.', true);
+    const loginValidationError =
+      validateEmail(email) ||
+      (!password ? 'Password is required.' : null);
+    if (loginValidationError) {
+      showAuthMessage(loginValidationError, true);
       return;
     }
 
@@ -254,7 +387,7 @@ function setupAuthPage() {
       showAuthMessage('Login successful. Redirecting...');
       window.location.href = 'home.html';
     } catch (error) {
-      showAuthMessage('Could not connect to server.', true);
+      showAuthMessage(error.message || 'Login failed.', true);
     }
   });
 
@@ -607,6 +740,7 @@ function setupDoctorBookingDashboard() {
 	}
 
 	const MONTH_CACHE_TTL_MS = 30 * 1000;
+	const minimumMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 	const state = {
 		doctors: [],
 		selectedDoctorId: '',
@@ -618,6 +752,10 @@ function setupDoctorBookingDashboard() {
 		pendingMonthRequests: new Map(),
 		monthLoadRequestId: 0,
 	};
+
+	function updateMonthNavigation() {
+		monthPrevBtn.disabled = state.currentMonth.getTime() <= minimumMonth.getTime();
+	}
 
 	function getMonthCacheKey(doctorId, monthValue) {
 		return `${String(doctorId)}:${monthValue}`;
@@ -850,17 +988,16 @@ function setupDoctorBookingDashboard() {
 
 		days.forEach((day) => {
 			const button = document.createElement('button');
+			const isSelected = day.iso_date === state.selectedDate;
 			button.type = 'button';
 			button.className = `monthDay ${
 				day.is_current_month ? 'currentMonth' : 'outsideMonth'
 			} ${day.status === 'available' ? 'available' : 'unavailable'} ${
-				day.iso_date === state.selectedDate ? 'selected' : ''
+				isSelected ? 'selected' : ''
 			}`;
 			button.disabled = !day.is_current_month || day.status !== 'available';
-			button.innerHTML = `
-				<span class="monthDayNumber">${day.day_number}</span>
-				<span class="monthDayMeta">${day.total_slots > 0 ? `${day.total_slots} slots` : 'No slots'}</span>
-			`;
+			button.setAttribute('aria-pressed', String(isSelected));
+			button.innerHTML = `<span class="monthDayNumber">${day.day_number}</span>`;
 
 			if (!button.disabled) {
 				button.addEventListener('click', () => {
@@ -926,6 +1063,7 @@ function setupDoctorBookingDashboard() {
 			state.currentMonthData = data;
 			monthLabel.textContent = data.month_label;
 			renderMonth(data.days);
+			updateMonthNavigation();
 			renderStatusMessage(statusMsg, `Showing ${data.doctor.full_name}'s availability.`, 'ok');
 
 			if (
@@ -936,6 +1074,7 @@ function setupDoctorBookingDashboard() {
 				state.selectedDate = firstAvailable ? firstAvailable.iso_date : '';
 				state.selectedSlot = null;
 				updateSummary();
+				renderMonth(data.days);
 				if (state.selectedDate) {
 					await loadDaySlots();
 				} else {
@@ -986,10 +1125,16 @@ function setupDoctorBookingDashboard() {
 	});
 
 	monthPrevBtn.addEventListener('click', async () => {
+		if (state.currentMonth.getTime() <= minimumMonth.getTime()) {
+			updateMonthNavigation();
+			return;
+		}
+
 		state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
 		state.selectedDate = '';
 		state.selectedSlot = null;
 		updateSummary();
+		updateMonthNavigation();
 		await loadMonth();
 	});
 
@@ -998,6 +1143,7 @@ function setupDoctorBookingDashboard() {
 		state.selectedDate = '';
 		state.selectedSlot = null;
 		updateSummary();
+		updateMonthNavigation();
 		await loadMonth();
 	});
 
@@ -1016,6 +1162,8 @@ function setupDoctorBookingDashboard() {
 		doctorSelect.value = String(firstDoctor.id);
 		handleDoctorSelection(firstDoctor.id);
 	});
+
+	updateMonthNavigation();
 
 	window.setInterval(() => {
 		if (!state.selectedDoctorId) {
