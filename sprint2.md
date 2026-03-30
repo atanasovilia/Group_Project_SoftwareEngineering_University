@@ -9,7 +9,8 @@ To support secure navigation, a protected portal structure was introduced. After
 These features were chosen because they form the minimum viable security layer required before implementing more advanced functionality such as appointment booking or medical records. Without authentication, the system would not meet basic security or usability expectations for a healthcare platform.
 
 ### **Version Control**
-GitHub URL: [GitHub](link)
+GitHub Link:
+https://github.com/atanasovilia/Group_Project_SoftwareEngineering_University/commits/Sprint-2-Complete/
 
 The GitHub repository contains the full development history of the project, including initial setup, authentication implementation, and ongoing feature development. The commit history demonstrates contributions from multiple team members, reflecting collaborative development and shared responsibility across both frontend and backend tasks. Descriptive commit messages have been used to clearly indicate the purpose of each update, such as implementing login functionality, setting up the database, and integrating medical records features. The project also utilises feature branches (e.g. authentication and database-related branches), which are merged into the main branch after development. This follows good version control practices and ensures that new features are developed, tested, and integrated in a structured and controlled manner.
 
