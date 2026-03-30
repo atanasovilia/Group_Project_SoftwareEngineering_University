@@ -1,0 +1,36 @@
+# **Sprint 2 - Summary**
+
+In Sprint 2, we selected three core user stories: User Registration/Login (Authentication), Secure Patient Portal Access, and Logout Functionality. These were prioritized because authentication is the foundation of the entire system, ensuring that only authorized users can access sensitive medical data and features such as appointments and records.
+
+Authentication was implemented allowing users to register with email, password, date of birth, and phone number. Validation was added to enforce strong passwords (minimum length, capital letter, number, and symbol) and prevent duplicate accounts. A login system was then built to verify credentials against stored data, ensuring that only registered users can access the system.
+
+To support secure navigation, a protected portal structure was introduced. After successful login, users are redirected to a home dashboard where key features (Appointments, Calendar, Records) are accessible. The system simulates protected routes by checking login state before allowing access. A logout feature was also implemented, clearing the session state and returning the user to the login page.
+
+These features were chosen because they form the minimum viable security layer required before implementing more advanced functionality such as appointment booking or medical records. Without authentication, the system would not meet basic security or usability expectations for a healthcare platform.
+
+### **Version Control**
+GitHub URL: [GitHub](link)
+
+The GitHub repository contains the full development history of the project, including initial setup, authentication implementation, and ongoing feature development. The commit history demonstrates contributions from multiple team members, reflecting collaborative development and shared responsibility across both frontend and backend tasks. Descriptive commit messages have been used to clearly indicate the purpose of each update, such as implementing login functionality, setting up the database, and integrating medical records features. The project also utilises feature branches (e.g. authentication and database-related branches), which are merged into the main branch after development. This follows good version control practices and ensures that new features are developed, tested, and integrated in a structured and controlled manner.
+
+## **Sprint 2 Retrospective**
+### **What went well?**
+Sprint 2 was highly productive, with the team successfully delivering key features such as authentication (login/register), secure password handling, and the medical records system. Completing authentication early in the sprint was particularly beneficial, as it allowed the team to begin integrating other features like the medical records portal without delays. The transition from local development to LAN and initial cloud deployment also went smoothly, enabling better testing and accessibility across the team, which added significant value to the overall system.
+
+Team collaboration was a major strength throughout the sprint. All members demonstrated a professional approach, consistently attending meetings on time, and actively participating in discussions and decision-making. The team maintained strong communication, often working together during in-person sessions, and supporting each other when challenges arose. For example, frontend and backend members collaborated closely when integrating the login system and medical records, which helped reduce errors and improve overall efficiency. This level of coordination ensured that tasks were completed effectively and aligned with sprint goals.
+
+From a Scrum perspective, sprint planning and regular check-ins played an important role in keeping the team on track. By clearly defining the sprint backlog and responsibilities at the beginning, each member understood their role and deliverables. Informal stand-up discussions during work sessions helped identify and resolve issues quickly, particularly during authentication implementation and database integration. This structured yet flexible approach allowed the team to stay organized, maintain steady progress, and successfully meet the sprint objectives.
+
+### **What could be improved?**
+One area for improvement is the design and integration of the appointment booking system. Currently, the system separates the calendar view and the booking functionality into different buttons, which can make the user experience less intuitive. In Sprint 3, we plan to improve this by integrating booking directly within the calendar interface, allowing patients to select a date and book an appointment in a single, seamless flow. This will enhance usability and better align with a patient-centred design.
+
+Another area we identified is refining our time estimation. While most tasks were completed successfully, some features—particularly authentication and deployment—took slightly longer than expected due to their complexity. To address this, in Sprint 3 we will break down larger user stories into smaller, more manageable tasks and review estimates more carefully during sprint planning to improve accuracy.
+
+Additionally, although our communication was strong, we relied mostly on informal discussions during in-person sessions. To improve consistency and tracking, we plan to introduce more structured stand-ups (e.g. twice a week) and make better use of GitHub Projects to track task progress more clearly. This will ensure better visibility of task status and help maintain organisation as the project becomes more complex.
+
+### **Any Issues?**
+One of the main technical challenges faced during Sprint 2 was implementing authentication securely, particularly integrating password hashing and ensuring proper validation during login. This initially caused delays as the team needed to research and correctly implement bcrypt to meet security requirements. The issue was resolved through collaborative debugging and testing, with backend members focusing on encryption while frontend members ensured correct data handling and error messages.
+
+Another issue was related to deployment, specifically transitioning from local to LAN and then to cloud hosting. Configuring the system to be accessible across different environments introduced challenges such as connection errors and database synchronisation. This was resolved by testing the system step-by-step (local → LAN → cloud) and making incremental fixes to ensure stability at each stage. Some minor deployment optimisations are still ongoing and have been carried forward into Sprint 3 for further improvement.
+
+We also encountered minor integration issues between frontend and backend components, particularly when connecting the medical records system to the user authentication flow. At times, data was not being retrieved correctly due to mismatched endpoints and data formats. This was resolved through team collaboration, where both frontend and backend members worked together to align API routes and data structures. Any remaining refinements have been added back into the Product Backlog as smaller tasks to be completed in Sprint 3.
