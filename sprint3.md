@@ -5,6 +5,9 @@ These features were chosen based on their high user value, as they directly supp
 
 The team also used experience from Sprints 1 and 2 to better estimate and plan this sprint. Previous challenges, particularly with authentication and deployment, helped improve our understanding of task complexity. As a result, story point estimates in Sprint 3 were more accurate, and the team selected a realistic workload that could be fully completed within the sprint. This demonstrates improved sprint planning, better time management, and increased team efficiency.
 
+GitHub Version Control Link:
+https://github.com/atanasovilia/Group_Project_SoftwareEngineering_University/commits/Sprint-3-Complete
+
 ### **Authentication Testing**
 | Test ID | Test Scenario | Test Steps | Expected Result | Actual Result | Status |
 |------|------------|----------------|-------------|--------|--------|
