@@ -8,6 +8,9 @@ The team also used experience from Sprints 1 and 2 to better estimate and plan t
 GitHub Version Control Link:
 https://github.com/atanasovilia/Group_Project_SoftwareEngineering_University/commits/Sprint-3-Complete
 
+Group Video Youtube Link:
+https://youtu.be/JxaNyyvjHmQ
+
 ### **Authentication Testing**
 | Test ID | Test Scenario | Test Steps | Expected Result | Actual Result | Status |
 |------|------------|----------------|-------------|--------|--------|
